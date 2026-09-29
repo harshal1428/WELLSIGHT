@@ -1,7 +1,7 @@
 // ============================================================
-// Mock Data — Synthetic Demo Wells for eRTMAC-NWIS
+// Local reference records for WELLSIGHT
 // ============================================================
-// NOTE: All data is SYNTHETIC. No real OIL data is used.
+// These local reference records are not connected to an operating well.
 
 import type {
   Well,
@@ -254,7 +254,7 @@ export const currentRisks: RiskAssessment[] = [
     evidenceItems: [
       '4 out of 8 offset wells experienced mud losses in F3 between 3,050–3,150m',
       'Current depth approaching known fractured zone identified in OIL-X27',
-      'ECD of 11.3 ppg approaching fracture gradient estimated at 11.8 ppg',
+      'Stored reference ECD of 11.3 ppg and fracture-gradient value of 11.8 ppg are close.',
     ],
     mitigationActions: [
       'Prepare LCM materials on standby',

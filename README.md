@@ -1,4 +1,4 @@
-# OFFSETIQ
+# WELLSIGHT
 
 Offset well knowledge and decision support for drilling operations.
 
@@ -14,9 +14,11 @@ Offset well knowledge and decision support for drilling operations.
 ## Deploy to Vercel
 
 1. Push this repository to GitHub, GitLab, or Bitbucket and import it into Vercel.
-2. Keep the default project root. Vercel detects Vite; the build command is `npm run build` and the output directory is `dist`.
-3. In Vercel project settings, add `VITE_CARTO_API_KEY` for the Preview and Production environments (and Development if desired). Use the same restricted public browser key.
+2. Keep the default project root. Vercel detects Vite; the build command is `npm run build`, the output directory is `dist`, and Node.js 20.19 or newer is required.
+3. In Vercel project settings, add `VITE_CARTO_API_KEY` for Preview and Production (and Development if desired). Use the restricted public browser key; `VITE_*` values are included in the client bundle. The map falls back to OpenStreetMap if the variable is absent.
 4. Redeploy after adding or changing the environment variable. `vercel.json` rewrites app routes to `index.html` for client-side routing.
+
+The deployed frontend supports the same browser-side workflows as local use. Saved readings, alert states, notes, and feedback remain in that browser's local storage; imported records are held for the current browser session. They are not shared with other users or devices and can be cleared by browser storage settings. Vercel deployment does not add a telemetry service, backend, login, or shared database.
 
 ## Scripts
 
@@ -25,4 +27,4 @@ Offset well knowledge and decision support for drilling operations.
 - `npm run lint` — run Oxlint.
 - `npm run preview` — preview the production build locally.
 
-The current application is a decision-support prototype populated with synthetic demonstration data.
+The application is a browser-based decision-support interface using local reference well, event, and parameter records. Live rig telemetry, an application backend, user authentication, and persistent server storage are not connected. Values shown in monitoring and risk views are not operational measurements or calibrated predictions. Connect and validate an approved telemetry and data service before operational use.

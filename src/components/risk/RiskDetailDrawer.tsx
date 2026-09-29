@@ -17,7 +17,7 @@ export function RiskDetailDrawer({ risk, onClose }: Props) {
       <div className="flex items-center justify-between p-5 border-b border-border-subtle bg-surface-card">
         <div>
           <h2 className="text-lg font-bold text-white">{risk.riskType === 'Torque Spike' ? 'Torque / Drag' : risk.riskType}</h2>
-          <p className="text-sm text-slate-400">Prototype Score: {risk.score} / 100</p>
+          <p className="text-sm text-slate-400">Historical relevance: {risk.score} / 100</p>
         </div>
         <div className="flex items-center gap-4">
           <RiskBadge level={risk.level} />
@@ -71,7 +71,7 @@ export function RiskDetailDrawer({ risk, onClose }: Props) {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-slate-400 italic">Historical response details are not available in this synthetic record.</p>
+              <p className="text-sm text-slate-400 italic">Historical response details are not available in this record.</p>
             )}
           </div>
         </section>

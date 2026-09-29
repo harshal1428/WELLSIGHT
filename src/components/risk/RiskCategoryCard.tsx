@@ -28,7 +28,7 @@ export function RiskCategoryCard({ risk, onClick }: Props) {
           </p>
         </div>
         <div className="text-right shrink-0">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider">Prototype Score</p>
+          <p className="text-[10px] text-slate-500 uppercase tracking-wider">Historical score</p>
           <p className="text-xl font-bold text-white">{risk.score} / 100</p>
         </div>
       </div>

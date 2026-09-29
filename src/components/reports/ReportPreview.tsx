@@ -28,10 +28,10 @@ export function ReportPreview() {
         <h1 className="text-2xl font-bold uppercase tracking-wide mb-1">Nearby Wells Intelligence — Engineering Review</h1>
         <div className="flex justify-between text-sm text-slate-600 font-mono">
           <span>Ref: REP-{activeWell.id}-{new Date().toISOString().split('T')[0]}</span>
-          <span>Generated (Demo): {new Date().toLocaleString('en-IN')}</span>
+          <span>Prepared: {new Date().toLocaleString('en-IN')}</span>
         </div>
         <div className="mt-4 p-2 bg-amber-100 border border-amber-300 text-amber-800 text-xs rounded">
-          <strong>Disclaimer:</strong> Prototype decision-support report using synthetic/demo data. Not an operational drilling instruction or confirmed incident record.
+          <strong>Data status:</strong> This report uses local reference records and is not an operational drilling instruction or confirmed incident record.
         </div>
       </div>
 
@@ -75,7 +75,7 @@ export function ReportPreview() {
 
       {/* Risk Intelligence */}
       <section className="mb-6">
-        <h2 className="text-lg font-bold border-b border-slate-300 mb-3 pb-1">3. Risk Intelligence (Prototype Scores)</h2>
+        <h2 className="text-lg font-bold border-b border-slate-300 mb-3 pb-1">3. Historical Risk Relevance</h2>
         {relevantRisks.length > 0 ? (
           <div className="space-y-4">
             {relevantRisks.map(risk => (
@@ -91,7 +91,7 @@ export function ReportPreview() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-600">No elevated risks identified in prototype scoring.</p>
+          <p className="text-sm text-slate-600">No elevated historical relevance was identified in the stored records.</p>
         )}
       </section>
 
@@ -119,9 +119,9 @@ export function ReportPreview() {
         )}
       </section>
 
-      {/* Prototype Alerts */}
+      {/* Alert records */}
       <section className="mb-6">
-        <h2 className="text-lg font-bold border-b border-slate-300 mb-3 pb-1">5. Prototype Alerts Workflow</h2>
+        <h2 className="text-lg font-bold border-b border-slate-300 mb-3 pb-1">5. Alert Records</h2>
         {relevantAlerts.length > 0 ? (
           <table className="w-full text-sm text-left border-collapse">
             <thead>
@@ -142,7 +142,7 @@ export function ReportPreview() {
             </tbody>
           </table>
         ) : (
-          <p className="text-sm text-slate-600">No prototype alerts generated.</p>
+          <p className="text-sm text-slate-600">No alert records are available.</p>
         )}
       </section>
 
@@ -176,7 +176,7 @@ export function ReportPreview() {
       </section>
 
       <div className="mt-8 text-center text-xs text-slate-500 font-mono">
-        *** END OF PROTOTYPE REPORT ***
+        *** END OF REPORT ***
       </div>
     </div>
   );

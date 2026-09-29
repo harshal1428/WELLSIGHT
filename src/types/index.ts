@@ -1,5 +1,5 @@
 // ============================================================
-// TypeScript type definitions for OFFSETIQ
+// TypeScript type definitions for WELLSIGHT
 // ============================================================
 
 export type WellStatus = 'DRILLING' | 'COMPLETED' | 'SUSPENDED' | 'PLANNED' | 'ABANDONED';
@@ -32,12 +32,13 @@ export interface Well {
   totalDepth: number;            // meters
   currentDepth?: number;         // meters (for active wells)
   formation: FormationId;
-  reservoir: ReservoirId;
+  reservoir?: ReservoirId;
   status: WellStatus;
   drillingDate: string;          // ISO date
   spudDate: string;              // ISO date
   historicalEvents: DrillingEvent[];
   relevanceScore: number;        // 0–100
+  isUnresolved?: boolean;
 }
 
 export interface DrillingEvent {

@@ -56,9 +56,9 @@ export function KnowledgePage() {
 
   // Compile all historical cases
   const allCases: SearchResult[] = useMemo(() => {
-    return nearbyWells.flatMap(well => 
+    return [activeWell, ...nearbyWells].flatMap(well =>
       well.historicalEvents.map(event => {
-        // Prototype relevance scoring logic
+        // Historical relevance scoring logic
         let score = 50;
         
         // Depth proximity (within 100m)
@@ -99,7 +99,7 @@ export function KnowledgePage() {
       if (filters.severity !== 'ALL' && c.event.severity !== filters.severity) return false;
       
       // Filter by Distance
-      if (filters.distance !== 'ALL' && c.well.distanceFromActiveWell > filters.distance) return false;
+      if (filters.distance !== 'ALL' && (!Number.isFinite(c.well.distanceFromActiveWell) || c.well.distanceFromActiveWell > filters.distance)) return false;
 
       // Filter by Search Query
       if (filters.searchQuery.trim() !== '') {
@@ -108,7 +108,7 @@ export function KnowledgePage() {
         const matchesDesc = c.event.description.toLowerCase().includes(query);
         const matchesWell = c.well.id.toLowerCase().includes(query);
         const matchesForm = c.event.formation.toLowerCase().includes(query);
-        const matchesRes = c.well.reservoir.toLowerCase().includes(query);
+        const matchesRes = (c.well.reservoir ?? '').toLowerCase().includes(query);
         const matchesMitigation = c.event.mitigation?.toLowerCase().includes(query) || false;
         const matchesSourceText = c.event.sourceMetadata?.extractedText.toLowerCase().includes(query) || false;
         
@@ -122,7 +122,7 @@ export function KnowledgePage() {
     result.sort((a, b) => {
       switch (filters.sortBy) {
         case 'Depth': return a.event.depth - b.event.depth;
-        case 'Distance': return a.well.distanceFromActiveWell - b.well.distanceFromActiveWell;
+        case 'Distance': return (Number.isFinite(a.well.distanceFromActiveWell) ? a.well.distanceFromActiveWell : Infinity) - (Number.isFinite(b.well.distanceFromActiveWell) ? b.well.distanceFromActiveWell : Infinity);
         case 'Severity': {
           const severityMap = { 'LOW': 1, 'MEDIUM': 2, 'HIGH': 3, 'CRITICAL': 4 };
           return severityMap[b.event.severity] - severityMap[a.event.severity];
@@ -158,7 +158,7 @@ export function KnowledgePage() {
           <div className="flex items-center gap-6">
             <HeaderStat label="Current Depth" value={`${activeWell.currentDepth} m`} />
             <HeaderStat label="Formation" value={activeWell.formation} />
-            <HeaderStat label="Reservoir" value={activeWell.reservoir} />
+            <HeaderStat label="Reservoir" value={activeWell.reservoir ?? 'Unavailable'} />
           </div>
         </div>
 
@@ -294,13 +294,13 @@ export function KnowledgePage() {
                <WorkflowStep text="Relevant historical cases" />
                <WorkflowStep text="Evidence-backed decision support" highlight />
              </div>
-             <p className="text-[9px] text-slate-500 italic mt-5 text-center bg-navy-950 py-1.5 rounded">Prototype knowledge workflow</p>
+             <p className="text-[9px] text-slate-500 italic mt-5 text-center bg-navy-950 py-1.5 rounded">Historical record review</p>
            </div>
 
            <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-5 mb-6">
              <p className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider mb-2">Relevant to {activeWell.id}</p>
              <p className="text-xs text-emerald-100/80 mb-3">
-               The current active well context ({activeWell.currentDepth}m • {activeWell.formation} • {activeWell.reservoir}) is used to prioritize these search results.
+               The current active well context ({activeWell.currentDepth ?? 'Depth unavailable'}m • {activeWell.formation} • {activeWell.reservoir ?? 'Reservoir unavailable'}) is used to prioritize these search results.
              </p>
            </div>
 

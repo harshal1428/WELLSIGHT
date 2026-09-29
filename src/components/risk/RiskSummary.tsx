@@ -28,7 +28,7 @@ export function RiskSummary({ activeWell, risks }: Props) {
               <RiskBadge level={overallLevel} />
             </div>
           </div>
-          <p className="text-xs text-slate-500">Prototype risk score — not operationally calibrated.</p>
+          <p className="text-xs text-slate-500">Historical relevance score only; not calibrated for operational decisions.</p>
         </div>
 
         <div className="grid grid-cols-2 gap-x-8 gap-y-4">

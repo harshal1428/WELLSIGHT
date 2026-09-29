@@ -27,7 +27,7 @@ export function KnowledgeResultCard({ event, well, relevanceScore, onClick }: Kn
           </div>
         </div>
         <div className="text-right">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Prototype Relevance</p>
+          <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Historical relevance</p>
           <p className="text-lg font-bold text-accent-400">{relevanceScore}%</p>
         </div>
       </div>
@@ -36,8 +36,8 @@ export function KnowledgeResultCard({ event, well, relevanceScore, onClick }: Kn
       <div className="grid grid-cols-4 gap-3 py-3 border-y border-border-subtle">
         <Metric icon={Target} label="Depth" value={`${event.depth} - ${event.depth + (event.durationHours ? event.durationHours * 2 : 20)}m`} />
         <Metric icon={Database} label="Formation" value={event.formation} />
-        <Metric icon={Database} label="Reservoir" value={well.reservoir} />
-        <Metric icon={MapPin} label="Distance" value={`${well.distanceFromActiveWell} km`} />
+        <Metric icon={Database} label="Reservoir" value={well.isUnresolved ? 'Unavailable' : well.reservoir ?? 'Unavailable'} />
+        <Metric icon={MapPin} label="Distance" value={Number.isFinite(well.distanceFromActiveWell) ? `${well.distanceFromActiveWell} km` : 'Unavailable'} />
       </div>
 
       {/* Summary */}
@@ -56,11 +56,11 @@ export function KnowledgeResultCard({ event, well, relevanceScore, onClick }: Kn
       <div className="flex justify-between items-center pt-2 text-[10px] text-slate-500">
         <span className="flex items-center gap-2">
            {event.sourceMetadata ? (
-             <span className="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-1.5 py-0.5 rounded font-bold">Imported Demo</span>
+             <span className="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-1.5 py-0.5 rounded font-bold">Imported record</span>
            ) : (
-             <span className="bg-slate-500/20 text-slate-400 border border-slate-500/30 px-1.5 py-0.5 rounded font-bold">Seeded Demo</span>
+             <span className="bg-slate-500/20 text-slate-400 border border-slate-500/30 px-1.5 py-0.5 rounded font-bold">Local record</span>
            )}
-           <span>Source: {event.sourceMetadata ? event.sourceMetadata.filename : 'Synthetic demo document'}</span>
+           <span>Source: {event.sourceMetadata ? event.sourceMetadata.filename : event.sourceDocument || 'Source file unavailable'}</span>
         </span>
         <span className="flex items-center gap-1 text-accent-400 group-hover:underline">View Case Details <ChevronRight size={12} /></span>
       </div>

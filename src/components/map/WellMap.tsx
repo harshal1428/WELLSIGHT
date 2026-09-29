@@ -5,11 +5,11 @@ import 'leaflet/dist/leaflet.css';
 import type { Well } from '../../types';
 
 // Custom icons using Lucide/SVG or DivIcon for better styling
-const createWellIcon = (isActive: boolean, relevanceScore: number) => {
-  const bgColor = isActive ? 'bg-accent-500' : relevanceScore >= 75 ? 'bg-emerald-500' : relevanceScore >= 50 ? 'bg-amber-500' : 'bg-slate-400';
+const createWellIcon = (isActive: boolean, isSelected = false) => {
+  const color = isActive ? '#0891b2' : isSelected ? '#0e7490' : '#64748b';
   const sizeClass = isActive ? 'w-6 h-6' : 'w-4 h-4';
   const html = `
-    <div class="${sizeClass} rounded-full ${bgColor} border-2 border-navy-950 shadow-lg flex items-center justify-center text-white ${isActive ? 'pulse-dot' : ''}">
+    <div class="${sizeClass} rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white ${isActive ? 'pulse-dot' : ''}" style="background-color:${color}">
       ${isActive ? '★' : ''}
     </div>
   `;
@@ -45,8 +45,8 @@ interface WellMapProps {
   onWellSelect: (wellId: string) => void;
 }
 
-export function WellMap({ activeWell, nearbyWells, radius, onWellSelect }: WellMapProps) {
-  const activeIcon = useMemo(() => createWellIcon(true, 100), []);
+export function WellMap({ activeWell, nearbyWells, radius, selectedWellId, onWellSelect }: WellMapProps) {
+  const activeIcon = useMemo(() => createWellIcon(true), []);
   
   return (
     <div className="w-full h-full bg-navy-900 rounded-lg overflow-hidden border border-border-default relative z-0">
@@ -97,11 +97,11 @@ export function WellMap({ activeWell, nearbyWells, radius, onWellSelect }: WellM
         </Marker>
 
         {/* Nearby Wells Markers */}
-        {nearbyWells.map(well => (
+        {nearbyWells.filter(well => Number.isFinite(well.latitude) && Number.isFinite(well.longitude)).map(well => (
           <Marker
             key={well.id}
             position={[well.latitude, well.longitude]}
-            icon={createWellIcon(false, well.relevanceScore)}
+            icon={createWellIcon(false, selectedWellId === well.id)}
             eventHandlers={{
               click: () => onWellSelect(well.id),
             }}
@@ -109,7 +109,7 @@ export function WellMap({ activeWell, nearbyWells, radius, onWellSelect }: WellM
             <Popup className="dark-popup">
               <div className="p-1">
                 <p className="text-xs font-bold text-navy-950">{well.id}</p>
-                <p className="text-[10px] text-slate-600">Rel: {well.relevanceScore}% | Dist: {well.distanceFromActiveWell}km</p>
+                <p className="text-[10px] text-slate-600">Stored distance: {well.distanceFromActiveWell} km</p>
               </div>
             </Popup>
           </Marker>

@@ -22,8 +22,8 @@ export function RiskMatrix({ risks }: Props) {
 
   return (
     <div className="bg-surface-card border border-border-default rounded-xl p-5 mt-6">
-      <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Prototype Risk Matrix</h3>
-      <p className="text-[10px] text-slate-500 mb-6">Visualizes synthetic scoring. Not an operational risk standard.</p>
+      <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Historical Relevance Matrix</h3>
+      <p className="text-[10px] text-slate-500 mb-6">Compares stored event frequency and historical relevance; not an operational risk standard.</p>
       
       <div className="relative aspect-square max-w-[300px] mx-auto bg-navy-900 border border-border-subtle rounded-lg grid grid-cols-3 grid-rows-3 overflow-hidden">
         {/* Background Grid */}

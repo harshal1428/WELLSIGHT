@@ -11,10 +11,9 @@ export function AlertsPage() {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('ALL'); // ALL, NEW, ACKNOWLEDGED, UNDER_REVIEW, RESOLVED
 
-  // Notice for Phase 6 Prototype
   const disclaimer = (
     <div className="bg-navy-800/80 border border-navy-700 rounded-lg p-3 text-xs text-slate-400 text-center mb-6">
-      <strong>Notice:</strong> Prototype alerts — simulated decision-support data; not confirmed incidents or live operational notifications.
+      <strong>Source status:</strong> Alerts are derived from stored reference records and are not live rig notifications or confirmed incidents.
     </div>
   );
 

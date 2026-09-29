@@ -44,7 +44,7 @@ export function RiskIntelligencePage() {
         <div className="text-xs text-slate-400">Reservoir: <span className="text-white">{activeWell.reservoir}</span></div>
         <div className="text-xs text-slate-400">Status: <span className="text-accent-400">{activeWell.status}</span></div>
         <div className="ml-auto bg-navy-800 text-[10px] text-slate-400 uppercase tracking-widest px-2 py-1 rounded">
-          Prototype risk assessment
+          Historical context assessment
         </div>
       </div>
 
@@ -98,12 +98,12 @@ export function RiskIntelligencePage() {
           </div>
 
           <div className="bg-surface-card border border-border-default rounded-xl p-5">
-            <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Prototype Intelligence Sources</h3>
+            <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Assessment Sources</h3>
             <ul className="text-xs text-slate-400 space-y-2">
               <li>• {nearbyWells.length} Nearby wells analyzed</li>
               <li>• Current active-well context applied</li>
-              <li>• Synthetic historical knowledge records</li>
-              <li className="italic text-slate-500 mt-4 border-t border-border-subtle pt-2">Note: This is a decision support prototype, not a production prediction system. Data is synthetic.</li>
+              <li>• Local historical reference records; source verification is unavailable</li>
+              <li className="italic text-slate-500 mt-4 border-t border-border-subtle pt-2">Scores are uncalibrated comparisons, not predictions or operating guidance. Confirm against verified well data.</li>
             </ul>
           </div>
         </div>

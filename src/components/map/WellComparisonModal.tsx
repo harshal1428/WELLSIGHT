@@ -14,7 +14,7 @@ export function WellComparisonModal({ activeWell, offsetWell, onClose }: WellCom
 
   const handleOpenCorrelation = () => {
     onClose();
-    navigate('/correlation');
+    navigate(`/correlation?offset=${encodeURIComponent(offsetWell.id)}`);
   };
 
   return (
@@ -69,15 +69,19 @@ export function WellComparisonModal({ activeWell, offsetWell, onClose }: WellCom
               </div>
 
               <div className="space-y-4">
-                <CompareRow label="Depth" value={`${activeWell.currentDepth} m (Current)`} />
+                <CompareRow label={activeWell.currentDepth != null ? 'Current depth' : 'Recorded depth'} value={activeWell.currentDepth != null ? `${activeWell.currentDepth} m` : activeWell.totalDepth ? `${activeWell.totalDepth} m` : 'Unavailable'} />
                 <CompareRow label="Total Depth" value={`${activeWell.totalDepth} m (Target)`} />
                 <CompareRow label="Formation" value={activeWell.formation} />
-                <CompareRow label="Reservoir" value={activeWell.reservoir} />
+                <CompareRow label="Reservoir" value={activeWell.reservoir ?? 'Unavailable'} />
                 
                 <div>
                   <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Historical Events</p>
                   <p className="text-sm text-slate-300 bg-navy-900 rounded-lg p-3 text-center border border-border-subtle">
-                    Currently drilling. No historical events.
+                    {activeWell.historicalEvents.length > 0 ? activeWell.historicalEvents.map((event) => (
+                      <div key={event.id} className="text-xs text-slate-300 py-1">
+                        {event.eventType} · {event.depth.toLocaleString()} m
+                      </div>
+                    )) : 'No historical case records attached.'}
                   </p>
                 </div>
               </div>
@@ -97,7 +101,7 @@ export function WellComparisonModal({ activeWell, offsetWell, onClose }: WellCom
                 <CompareRow 
                   label="Depth" 
                   value={`${offsetWell.totalDepth} m (Total)`} 
-                  highlight={Math.abs((activeWell.currentDepth || 0) - offsetWell.totalDepth) < 200} 
+                  highlight={activeWell.currentDepth != null && Math.abs(activeWell.currentDepth - offsetWell.totalDepth) < 200}
                 />
                 <CompareRow label="Total Depth" value={`${offsetWell.totalDepth} m`} />
                 <CompareRow 
@@ -107,7 +111,7 @@ export function WellComparisonModal({ activeWell, offsetWell, onClose }: WellCom
                 />
                 <CompareRow 
                   label="Reservoir" 
-                  value={offsetWell.reservoir} 
+                  value={offsetWell.reservoir ?? 'Unavailable'}
                   highlight={activeWell.reservoir === offsetWell.reservoir}
                 />
                 

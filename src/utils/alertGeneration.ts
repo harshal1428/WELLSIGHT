@@ -25,17 +25,17 @@ export function generateAlertsForWell(activeWell: Well, nearbyWells: Well[]): Al
       }
 
       // Stable ID based on well ID and risk type
-      const stableId = `PROTOTYPE-ALERT-${activeWell.id}-${risk.riskType.replace(/\s+/g, '-').toUpperCase()}`;
+      const stableId = `REFERENCE-ALERT-${activeWell.id}-${risk.riskType.replace(/\s+/g, '-').toUpperCase()}`;
 
       alerts.push({
         id: stableId,
         title: `Proactive Alert: ${risk.riskType} Risk`,
-        message: `Prototype alert generated due to elevated historical relevance. Prototype score: ${risk.score}/100.`,
+        message: `Historical reference alert based on local relevance scoring. Score: ${risk.score}/100.`,
         priority: isCritical ? 'CRITICAL' : 'WARNING',
         wellId: activeWell.id,
         depth: activeWell.currentDepth || activeWell.totalDepth,
         formation: activeWell.formation,
-        timestamp: new Date().toISOString(), // In a real app this would be stable, we'll keep it as now for demo or could use a fixed string
+        timestamp: new Date().toISOString(),
         acknowledged: false,
         status: 'NEW',
         evidenceItems,

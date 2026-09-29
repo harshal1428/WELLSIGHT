@@ -10,11 +10,12 @@ import {
   FileBarChart,
   Waves,
   Upload,
+  BrainCircuit,
 } from 'lucide-react';
 
 const navItems = [
   { to: '/',              label: 'Overview',             icon: LayoutDashboard },
-  { to: '/live-well',     label: 'Well Monitor',            icon: Activity },
+  { to: '/live-well',     label: 'Well Monitoring',         icon: Activity },
   { to: '/nearby-wells',  label: 'Nearby Wells',         icon: MapPin },
   { to: '/correlation',   label: 'Well Correlation',     icon: GitCompareArrows },
   { to: '/knowledge',     label: 'Historical Knowledge', icon: BookOpen },
@@ -22,6 +23,7 @@ const navItems = [
   { to: '/alerts',        label: 'Alerts',               icon: Bell },
   { to: '/reports',       label: 'Reports',              icon: FileBarChart },
   { to: '/import',        label: 'Data Import',          icon: Upload },
+  { to: '/intelligence',  label: 'Well Intelligence',    icon: BrainCircuit },
 ];
 
 export function Sidebar() {
@@ -34,8 +36,8 @@ export function Sidebar() {
             <Waves size={18} className="text-accent-500" />
           </div>
           <div>
-            <span className="text-sm font-bold text-white tracking-tight">OFFSET</span>
-            <span className="text-sm font-bold text-accent-500 ml-0.5">IQ</span>
+            <span className="text-sm font-bold text-white tracking-tight">WELL</span>
+            <span className="text-sm font-bold text-accent-500 ml-0.5">SIGHT</span>
           </div>
         </div>
       </div>
@@ -65,9 +67,9 @@ export function Sidebar() {
 
       {/* ── Footer ───────────────────────────────────────────── */}
       <div className="px-5 py-4 border-t border-border-default">
-        <p className="text-[11px] font-semibold text-navy-300 uppercase tracking-widest">OFFSETIQ</p>
-        <p className="text-[10px] text-navy-400 mt-0.5">Offset Well Intelligence</p>
-        <p className="text-[10px] text-navy-500 mt-1">Decision Support • v0.1 Prototype</p>
+        <p className="text-[11px] font-semibold text-navy-300 uppercase tracking-widest">WELLSIGHT</p>
+        <p className="text-[10px] text-navy-400 mt-0.5">Well Monitoring &amp; Intelligence</p>
+        <p className="text-[10px] text-navy-500 mt-1">Well Operations Decision Support</p>
       </div>
     </aside>
   );

@@ -39,7 +39,7 @@ const riskConfig: Record<RiskLevel, { label: string; color: string; bg: string; 
   LOW: { label: 'Low', color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30' },
   MEDIUM: { label: 'Medium', color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/30' },
   HIGH: { label: 'High', color: 'text-orange-400', bg: 'bg-orange-400/10', border: 'border-orange-400/30' },
-  CRITICAL: { label: 'Critical', color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/30' },
+  CRITICAL: { label: 'Critical', color: 'text-red-800', bg: 'bg-red-50', border: 'border-red-300' },
 };
 
 export function RiskBadge({ level, size = 'md', showLabel = true }: RiskBadgeProps) {
@@ -78,7 +78,7 @@ interface AlertPriorityBadgeProps {
 const alertConfig: Record<AlertPriority, { color: string; bg: string }> = {
   INFO: { color: 'text-blue-400', bg: 'bg-blue-400/10' },
   WARNING: { color: 'text-amber-400', bg: 'bg-amber-400/10' },
-  CRITICAL: { color: 'text-red-400', bg: 'bg-red-400/10' },
+  CRITICAL: { color: 'text-red-800', bg: 'bg-red-50' },
 };
 
 export function AlertPriorityBadge({ priority }: AlertPriorityBadgeProps) {

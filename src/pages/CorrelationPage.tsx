@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Play, AlertTriangle, BookOpen, Settings2 } from 'lucide-react';
 import { useWellContext } from '../hooks/useWellContext';
 import { StatusBadge, SeverityBadge } from '../components/ui/Badges';
@@ -9,10 +9,13 @@ import type { DrillingEvent } from '../types';
 export function CorrelationPage() {
   const navigate = useNavigate();
   const { activeWell, nearbyWells } = useWellContext();
+  const [searchParams] = useSearchParams();
   
   // State
-  const [currentDepth, setCurrentDepth] = useState(activeWell.currentDepth || 3180);
-  const [selectedOffsetIds, setSelectedOffsetIds] = useState<string[]>(['OIL-X11', 'OIL-X19', 'OIL-X21']);
+  const [depthByWell, setDepthByWell] = useState<Record<string, number>>({});
+  const currentDepth = depthByWell[activeWell.id] ?? activeWell.currentDepth ?? activeWell.totalDepth;
+  const moveDepth = (delta: number) => setDepthByWell((previous) => ({ ...previous, [activeWell.id]: currentDepth + delta }));
+  const [selectedOffsetIds, setSelectedOffsetIds] = useState<string[]>(() => searchParams.get('offset') ? [searchParams.get('offset')!] : ['OIL-X11', 'OIL-X19', 'OIL-X21']);
   const [depthRange, setDepthRange] = useState<number>(200); // +/- from current depth
   const [selectedEvent, setSelectedEvent] = useState<DrillingEvent | null>(null);
 
@@ -42,9 +45,9 @@ export function CorrelationPage() {
     );
   }, [selectedWells, visibleTopDepth, visibleBottomDepth]);
 
-  // Simulate Progress
-  const simulateProgress = () => {
-    setCurrentDepth(prev => prev + 10);
+  // Advance interval
+  const advanceProgress = () => {
+    moveDepth(10);
   };
 
   return (
@@ -67,21 +70,21 @@ export function CorrelationPage() {
           </div>
 
           <div className="flex items-center gap-6 ml-6">
-            <HeaderStat label="Current Depth" value={`${currentDepth} m`} highlight />
+            <HeaderStat label={activeWell.currentDepth != null ? 'Current Depth' : 'Recorded Depth'} value={`${currentDepth} m`} highlight />
             <HeaderStat label="Formation" value={currentFormationInfo?.id || activeWell.formation} />
-            <HeaderStat label="Reservoir" value={activeWell.reservoir} />
+            <HeaderStat label="Reservoir" value={activeWell.reservoir ?? 'Unavailable'} />
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-           <button onClick={() => setCurrentDepth(prev => prev - 10)} className="px-3 py-1.5 bg-navy-800 hover:bg-navy-700 text-xs font-medium rounded border border-border-subtle transition-colors">
+           <button onClick={() => moveDepth(-10)} className="px-3 py-1.5 bg-navy-800 hover:bg-navy-700 text-xs font-medium rounded border border-border-subtle transition-colors">
              −10 m
            </button>
-           <button onClick={() => setCurrentDepth(prev => prev + 10)} className="px-3 py-1.5 bg-navy-800 hover:bg-navy-700 text-xs font-medium rounded border border-border-subtle transition-colors">
+           <button onClick={() => moveDepth(10)} className="px-3 py-1.5 bg-navy-800 hover:bg-navy-700 text-xs font-medium rounded border border-border-subtle transition-colors">
              +10 m
            </button>
-           <button onClick={simulateProgress} className="px-4 py-1.5 bg-accent-500/10 hover:bg-accent-500/20 text-accent-400 text-xs font-bold rounded border border-accent-500/30 transition-colors flex items-center gap-2">
-             <Play size={12} fill="currentColor" /> Simulate Progress
+           <button onClick={advanceProgress} className="px-4 py-1.5 bg-accent-500/10 hover:bg-accent-500/20 text-accent-400 text-xs font-bold rounded border border-accent-500/30 transition-colors flex items-center gap-2">
+             <Play size={12} fill="currentColor" /> Advance interval
            </button>
         </div>
       </div>
@@ -123,7 +126,7 @@ export function CorrelationPage() {
                 <span className="bg-navy-800 text-slate-300 px-1.5 py-0.5 rounded text-[10px]">{selectedOffsetIds.length}</span>
               </label>
               <div className="space-y-2">
-                {nearbyWells.filter(w => w.relevanceScore >= 50).map(well => (
+                {nearbyWells.filter(w => w.relevanceScore >= 50 || w.isUnresolved).map(well => (
                   <label key={well.id} className="flex items-center gap-3 p-2 rounded-lg bg-navy-900 border border-border-subtle cursor-pointer hover:border-accent-500/30 transition-colors">
                     <input 
                       type="checkbox" 
@@ -136,7 +139,7 @@ export function CorrelationPage() {
                     />
                     <div className="flex-1">
                       <p className="text-xs font-bold text-white">{well.id}</p>
-                      <p className="text-[10px] text-slate-400">Rel: {well.relevanceScore}%</p>
+                      <p className="text-[10px] text-slate-400">{well.isUnresolved ? 'Location unavailable · event context only' : `Rel: ${well.relevanceScore}%`}</p>
                     </div>
                   </label>
                 ))}
@@ -283,7 +286,7 @@ export function CorrelationPage() {
               <AlertTriangle size={14} /> Historical Correlation
             </h3>
             <p className="text-xs text-slate-300 leading-relaxed mb-4">
-              Active well <strong className="text-white">{activeWell.id}</strong> is currently at <strong className="text-white">{currentDepth}m</strong> in Formation <strong className="text-white">{currentFormationInfo?.id || activeWell.formation}</strong>.
+              Active well <strong className="text-white">{activeWell.id}</strong> is shown at comparison depth <strong className="text-white">{currentDepth}m</strong> in Formation <strong className="text-white">{currentFormationInfo?.id || activeWell.formation}</strong>.
             </p>
             <p className="text-xs text-slate-300 leading-relaxed mb-4">
               <strong className="text-accent-400">{selectedWells.length}</strong> selected offset wells contain historical events within comparable depth/formation intervals.
@@ -303,7 +306,7 @@ export function CorrelationPage() {
             </div>
 
             <p className="text-[9px] text-slate-500 italic mt-4 text-center">
-              This is historical context, not an autonomous prediction. Prototype correlation logic applied.
+              This is historical context, not an autonomous prediction. Reference correlation logic applied.
             </p>
           </div>
 
@@ -371,9 +374,9 @@ export function CorrelationPage() {
 
               <div className="pt-2 border-t border-border-subtle flex justify-between items-center">
                  <p className="text-[10px] text-slate-500">
-                   Source: <span className="text-slate-400 cursor-not-allowed border-b border-dashed border-slate-600 pb-[1px]" title="Source record unavailable in prototype">{selectedEvent.sourceDocument}</span>
+                   Source: <span className="text-slate-400 cursor-not-allowed border-b border-dashed border-slate-600 pb-[1px]" title="Original source file unavailable">{selectedEvent.sourceDocument}</span>
                  </p>
-                 <p className="text-[9px] text-slate-600 italic">Synthetic demo document</p>
+                 <p className="text-[9px] text-slate-600 italic">Case record summary</p>
               </div>
             </div>
           </div>

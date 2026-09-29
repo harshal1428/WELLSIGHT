@@ -8,6 +8,7 @@ import {
   activeWell as defaultActiveWell,
   currentDrillingParameters,
   currentRisks,
+  currentAlerts,
   nearbyWells,
 } from '../data/mockData';
 import { generateAlertsForWell } from '../utils/alertGeneration';
@@ -24,7 +25,7 @@ interface ReportNotes {
 interface WellContextType {
   activeWell: Well;
   setActiveWell: (well: Well) => void;
-  currentParameters: DrillingParameters;
+  currentParameters: DrillingParameters | null;
   risks: RiskAssessment[];
   alerts: Alert[];
   unacknowledgedAlertCount: number;
@@ -43,11 +44,14 @@ const WellContext = createContext<WellContextType | undefined>(undefined);
 export function WellProvider({ children }: { children: ReactNode }) {
   const [well, setWell] = useState<Well>(defaultActiveWell);
   
-  // Use useMemo to generate stable alerts based on the current well context once
-  const initialAlerts = useMemo(() => generateAlertsForWell(well, nearbyWells), [well]);
-  
-  const [alerts, setAlerts] = useState<Alert[]>(initialAlerts);
-  const [reportNotes, setReportNotes] = useState<Record<string, ReportNotes>>({});
+  const [alertStatuses, setAlertStatuses] = useState<Record<string, AlertStatus>>(() => {
+    try { return JSON.parse(localStorage.getItem('wellsight.alert-statuses.v1') ?? '{}') as Record<string, AlertStatus>; }
+    catch { return {}; }
+  });
+  const [reportNotes, setReportNotes] = useState<Record<string, ReportNotes>>(() => {
+    try { return JSON.parse(localStorage.getItem('wellsight.report-notes.v1') ?? '{}') as Record<string, ReportNotes>; }
+    catch { return {}; }
+  });
   
   // Session storage for imported records
   const [importedRecords, setImportedRecords] = useState<DrillingEvent[]>(() => {
@@ -82,32 +86,25 @@ export function WellProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const acknowledgeAlert = (alertId: string) => {
-    setAlerts((prev) =>
-      prev.map((a) => (a.id === alertId ? { ...a, acknowledged: true, status: a.status === 'NEW' ? 'ACKNOWLEDGED' : a.status } : a))
-    );
-  };
-
   const updateAlertStatus = (alertId: string, status: AlertStatus) => {
-    setAlerts((prev) =>
-      prev.map((a) => {
-        if (a.id === alertId) {
-          const acknowledged = status === 'NEW' ? false : true;
-          return { ...a, status, acknowledged };
-        }
-        return a;
-      })
-    );
+    setAlertStatuses((previous) => {
+      const updated = { ...previous, [alertId]: status };
+      try { localStorage.setItem('wellsight.alert-statuses.v1', JSON.stringify(updated)); } catch { /* Keep this update for the current session. */ }
+      return updated;
+    });
   };
+  const acknowledgeAlert = (alertId: string) => updateAlertStatus(alertId, 'ACKNOWLEDGED');
 
   const updateReportNotes = (wellId: string, notes: ReportNotes) => {
-    setReportNotes((prev) => ({ ...prev, [wellId]: notes }));
+    setReportNotes((previous) => {
+      const updated = { ...previous, [wellId]: notes };
+      try { localStorage.setItem('wellsight.report-notes.v1', JSON.stringify(updated)); } catch { /* Keep this update for the current session. */ }
+      return updated;
+    });
   };
 
-  const unacknowledgedAlertCount = alerts.filter((a) => !a.acknowledged && a.status === 'NEW').length;
-
   const extendedNearbyWells = useMemo(() => {
-    if (importedRecords.length === 0) return nearbyWells;
+    if (importedRecords.length === 0) return nearbyWells.filter((record) => record.id !== well.id);
 
     const importedByWell: Record<string, DrillingEvent[]> = {};
     importedRecords.forEach(event => {
@@ -116,47 +113,64 @@ export function WellProvider({ children }: { children: ReactNode }) {
       importedByWell[wId].push(event);
     });
 
-    const knownWellIds = new Set<string>();
+    const knownWellIds = new Set<string>([well.id]);
 
-    const mergedWells = nearbyWells.map(well => {
-      knownWellIds.add(well.id);
-      if (importedByWell[well.id]) {
+    const mergedWells = nearbyWells.filter((record) => record.id !== well.id).map(record => {
+      knownWellIds.add(record.id);
+      if (importedByWell[record.id]) {
         return {
-          ...well,
-          historicalEvents: [...well.historicalEvents, ...importedByWell[well.id]]
+          ...record,
+          historicalEvents: [...record.historicalEvents, ...importedByWell[record.id]]
         };
       }
-      return well;
+      return record;
     });
 
     const unresolvedWells: Well[] = Object.keys(importedByWell)
       .filter(wId => !knownWellIds.has(wId))
       .map(wId => ({
         id: wId,
-        name: `Unresolved Reference: ${wId}`,
-        latitude: well.latitude + 0.05,
-        longitude: well.longitude + 0.05,
-        distanceFromActiveWell: 5.0,
-        totalDepth: 5000,
+        name: `Location unavailable: ${wId}`,
+        latitude: Number.NaN,
+        longitude: Number.NaN,
+        distanceFromActiveWell: Number.NaN,
+        totalDepth: 0,
         formation: well.formation,
-        reservoir: well.reservoir,
         status: 'COMPLETED',
-        drillingDate: '2026-01-01T00:00:00Z',
-        spudDate: '2026-01-01T00:00:00Z',
+        drillingDate: '',
+        spudDate: '',
         historicalEvents: importedByWell[wId],
-        relevanceScore: 50
+        relevanceScore: 0,
+        isUnresolved: true,
       }));
 
     return [...mergedWells, ...unresolvedWells];
   }, [nearbyWells, importedRecords, well]);
 
+  const activeWellRecord = useMemo(() => {
+    const wellEvents = importedRecords.filter((event) => event.wellId === well.id);
+    return wellEvents.length ? { ...well, historicalEvents: [...well.historicalEvents, ...wellEvents] } : well;
+  }, [well, importedRecords]);
+
+  const alerts = useMemo(() => {
+    const base = well.id === defaultActiveWell.id && importedRecords.length === 0
+      ? currentAlerts
+      : generateAlertsForWell(well, extendedNearbyWells);
+    return base.map((alert) => {
+      const status = alertStatuses[alert.id] ?? alert.status;
+      return { ...alert, status, acknowledged: status !== 'NEW' };
+    });
+  }, [well, importedRecords.length, extendedNearbyWells, alertStatuses]);
+  const unacknowledgedAlertCount = alerts.filter((alert) => !alert.acknowledged && alert.status === 'NEW').length;
+  const risks = well.id === defaultActiveWell.id ? currentRisks : [];
+
   return (
     <WellContext.Provider
       value={{
-        activeWell: well,
+        activeWell: activeWellRecord,
         setActiveWell: setWell,
-        currentParameters: currentDrillingParameters,
-        risks: currentRisks,
+        currentParameters: well.id === defaultActiveWell.id ? currentDrillingParameters : null,
+        risks,
         alerts,
         unacknowledgedAlertCount,
         nearbyWells: extendedNearbyWells,

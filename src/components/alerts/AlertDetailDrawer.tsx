@@ -106,7 +106,7 @@ export function AlertDetailDrawer({ alert, onClose, onUpdateStatus }: Props) {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-slate-400 italic">Historical response details are not available in this synthetic record.</p>
+              <p className="text-sm text-slate-400 italic">Historical response details are not available in this record.</p>
             )}
           </div>
         </section>

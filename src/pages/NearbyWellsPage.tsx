@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useWellContext } from '../hooks/useWellContext';
 import { WellFilters, type WellFilterState } from '../components/map/WellFilters';
 import { WellMap } from '../components/map/WellMap';
@@ -8,6 +9,7 @@ import { WellComparisonModal } from '../components/map/WellComparisonModal';
 
 export function NearbyWellsPage() {
   const { activeWell, nearbyWells } = useWellContext();
+  const [searchParams] = useSearchParams();
 
   const [filters, setFilters] = useState<WellFilterState>({
     radius: 10,
@@ -17,12 +19,13 @@ export function NearbyWellsPage() {
     relevance: 'ALL',
   });
 
-  const [selectedWellId, setSelectedWellId] = useState<string | null>(null);
+  const [selectedWellId, setSelectedWellId] = useState<string | null>(() => searchParams.get('well'));
   const [showComparison, setShowComparison] = useState(false);
 
   // Filter nearby wells
   const filteredWells = useMemo(() => {
     return nearbyWells.filter(well => {
+      if (!Number.isFinite(well.latitude) || !Number.isFinite(well.longitude)) return false;
       // Radius
       if (well.distanceFromActiveWell > filters.radius) return false;
       
@@ -66,7 +69,7 @@ export function NearbyWellsPage() {
           <WellFilters
             filters={filters}
             onFiltersChange={setFilters}
-            totalWells={nearbyWells.length}
+            totalWells={nearbyWells.filter(well => Number.isFinite(well.latitude) && Number.isFinite(well.longitude)).length}
             visibleWells={filteredWells.length}
             totalEvents={totalEvents}
             highRelevanceCount={highRelevanceCount}

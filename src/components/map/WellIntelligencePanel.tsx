@@ -18,7 +18,7 @@ export function WellIntelligencePanel({ well, activeWell, onClose, onCompare }: 
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-bold text-white">{well.id}</h2>
-            <StatusBadge status={well.status} size="sm" />
+            {well.isUnresolved ? <span className="rounded border border-amber-400/30 px-2 py-0.5 text-[10px] text-amber-300">Well details unavailable</span> : <StatusBadge status={well.status} size="sm" />}
           </div>
           <p className="text-xs text-slate-400 mt-0.5">{well.name}</p>
         </div>
@@ -30,23 +30,23 @@ export function WellIntelligencePanel({ well, activeWell, onClose, onCompare }: 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
         {/* Basic Info */}
         <div className="grid grid-cols-2 gap-3 text-xs">
-          <InfoItem icon={MapPin} label="Distance" value={`${well.distanceFromActiveWell} km`} />
-          <InfoItem icon={Target} label="Total Depth" value={`${well.totalDepth.toLocaleString()}m`} />
-          <InfoItem icon={Layers} label="Formation" value={well.formation} />
-          <InfoItem icon={DatabaseIcon} label="Reservoir" value={well.reservoir} />
+          <InfoItem icon={MapPin} label="Distance" value={Number.isFinite(well.distanceFromActiveWell) ? `${well.distanceFromActiveWell} km` : 'Unavailable'} />
+          <InfoItem icon={Target} label="Total Depth" value={well.totalDepth ? `${well.totalDepth.toLocaleString()}m` : 'Unavailable'} />
+          <InfoItem icon={Layers} label="Formation" value={well.isUnresolved ? 'Unavailable' : well.formation} />
+          <InfoItem icon={DatabaseIcon} label="Reservoir" value={well.isUnresolved ? 'Unavailable' : well.reservoir ?? 'Unavailable'} />
         </div>
 
         {/* Relevance Section */}
         <div className="bg-navy-800/40 border border-border-default rounded-lg p-3">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Relevance Score</h3>
-            <span className="text-sm font-bold text-accent-400">{well.relevanceScore}%</span>
+            <span className="text-sm font-bold text-accent-400">{well.isUnresolved ? 'Unavailable' : `${well.relevanceScore}%`}</span>
           </div>
           <div className="space-y-1.5">
             <p className="text-[10px] text-slate-400 mb-1">Why this well is relevant:</p>
-            <RelevanceReason met={true} text={`${well.distanceFromActiveWell} km from active well`} />
-            <RelevanceReason met={well.formation === activeWell.formation} text={well.formation === activeWell.formation ? `Same formation: ${well.formation}` : `Different formation (${well.formation})`} />
-            <RelevanceReason met={well.reservoir === activeWell.reservoir} text={well.reservoir === activeWell.reservoir ? `Same reservoir: ${well.reservoir}` : `Different reservoir (${well.reservoir})`} />
+            <RelevanceReason met={!well.isUnresolved} text={well.isUnresolved ? 'Location unavailable; distance cannot be compared' : `${well.distanceFromActiveWell} km from active well`} />
+            <RelevanceReason met={!well.isUnresolved && well.formation === activeWell.formation} text={well.isUnresolved ? 'Formation unavailable' : well.formation === activeWell.formation ? `Same formation: ${well.formation}` : `Different formation (${well.formation})`} />
+            <RelevanceReason met={!well.isUnresolved && well.reservoir === activeWell.reservoir} text={well.isUnresolved ? 'Reservoir unavailable' : well.reservoir === activeWell.reservoir ? `Same reservoir: ${well.reservoir}` : `Different reservoir (${well.reservoir})`} />
             <RelevanceReason met={well.historicalEvents.length > 0} text={`${well.historicalEvents.length} recorded historical events`} />
           </div>
         </div>
@@ -72,13 +72,13 @@ export function WellIntelligencePanel({ well, activeWell, onClose, onCompare }: 
 
       {/* Footer / Actions */}
       <div className="p-4 border-t border-border-default shrink-0">
-        <button
+        {well.isUnresolved ? <p className="text-center text-xs text-slate-500">Map-based comparison is unavailable until well location and formation details are provided.</p> : <button
           onClick={onCompare}
           className="w-full py-2 bg-accent-500/10 hover:bg-accent-500/20 border border-accent-500/30 text-accent-400 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
         >
           <GitCompareIcon size={14} />
           Compare with Active Well
-        </button>
+        </button>}
       </div>
     </div>
   );
@@ -168,11 +168,11 @@ function HistoricalEventCard({ event }: { event: DrillingEvent }) {
              <span className="text-slate-500 flex items-center gap-1">
                <Calendar size={10} /> {new Date(event.timestamp).toLocaleDateString()}
              </span>
-             <span className="flex items-center gap-1 text-slate-400 cursor-not-allowed border-b border-dashed border-slate-600 pb-[1px]" title="Source record unavailable in prototype">
+             <span className="flex items-center gap-1 text-slate-400 cursor-not-allowed border-b border-dashed border-slate-600 pb-[1px]" title="Original source file unavailable">
                {event.sourceDocument} <ExternalLink size={10} />
              </span>
           </div>
-          <p className="text-[9px] text-slate-600 italic text-right mt-1">Synthetic demo document</p>
+          <p className="text-[9px] text-slate-600 italic text-right mt-1">Case record summary</p>
         </div>
       )}
     </div>

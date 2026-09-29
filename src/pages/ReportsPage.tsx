@@ -109,7 +109,7 @@ export function ReportsPage() {
                   <span className="text-sm font-bold text-white">{activeWell.id}</span>
                 </div>
                 <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] rounded font-medium uppercase tracking-wider">
-                  Data Synced
+                  Local Reference Data
                 </span>
               </div>
               

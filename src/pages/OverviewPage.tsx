@@ -42,11 +42,11 @@ export function OverviewPage() {
   const topNearbyWells = nearbyWells.slice(0, 4);
 
   // Format time series for chart
-  const chartData = parameterTimeSeries.map((p) => ({
+  const chartData = currentParameters ? parameterTimeSeries.map((p) => ({
     depth: p.depth,
     torque: p.torque,
     rop: p.rop,
-  }));
+  })) : [];
 
   // Current formation info
   const currentFormation = formations.find((f) => f.id === activeWell.formation);
@@ -111,7 +111,7 @@ export function OverviewPage() {
             />
             <MetricCard
               label="ROP"
-              value={currentParameters.rop}
+              value={currentParameters?.rop ?? '—'}
               unit="m/hr"
               icon={TrendingUp}
               trend="down"
@@ -137,10 +137,10 @@ export function OverviewPage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-white">Overall Risk</span>
-                <RiskBadge level="HIGH" />
+                {topRisks[0] ? <RiskBadge level={topRisks[0].riskLevel} /> : <span className="text-xs text-slate-400">Unavailable</span>}
               </div>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Based on {risks.length} active assessments
+                {risks.length ? `Based on ${risks.length} stored assessments` : 'No well-specific assessment is available'}
               </p>
             </div>
           </div>
@@ -156,7 +156,7 @@ export function OverviewPage() {
                   <RiskBadge level={risk.riskLevel} size="sm" />
                   <span className="text-xs text-white font-medium truncate">{risk.riskType}</span>
                 </div>
-                <span className="text-[11px] text-slate-400 shrink-0">{risk.confidence}%</span>
+                <span className="text-[11px] text-slate-400 shrink-0">{risk.riskLevel}</span>
               </div>
             ))}
           </div>
@@ -179,19 +179,19 @@ export function OverviewPage() {
         <div className="lg:col-span-1 bg-surface-card border border-border-default rounded-xl p-5">
           <SectionHeader
             title="Drilling Parameters"
-            subtitle="Simulated parameters (Demo)"
+            subtitle="Stored reference parameters · sensor link offline"
             icon={Gauge}
           />
 
           <div className="grid grid-cols-2 gap-2.5">
-            <ParameterReadout label="WOB" value={currentParameters.wob} unit="klbs" icon={Weight} />
-            <ParameterReadout label="RPM" value={currentParameters.rpm} unit="rpm" icon={RotateCw} />
-            <ParameterReadout label="Torque" value={currentParameters.torque} unit="kN·m" icon={Zap} alert />
-            <ParameterReadout label="Mud Flow" value={currentParameters.mudFlow} unit="L/min" icon={Droplets} />
-            <ParameterReadout label="Mud Weight" value={currentParameters.mudWeight} unit="ppg" icon={Waves} />
-            <ParameterReadout label="Pressure" value={currentParameters.pressure.toLocaleString()} unit="psi" icon={Gauge} />
-            <ParameterReadout label="ECD" value={currentParameters.ecd} unit="ppg" icon={BarChart3} />
-            <ParameterReadout label="Hook Load" value={currentParameters.hookLoad} unit="klbs" icon={Activity} />
+            <ParameterReadout label="WOB" value={currentParameters?.wob ?? '—'} unit="klbs" icon={Weight} />
+            <ParameterReadout label="RPM" value={currentParameters?.rpm ?? '—'} unit="rpm" icon={RotateCw} />
+            <ParameterReadout label="Torque" value={currentParameters?.torque ?? '—'} unit="kN·m" icon={Zap} alert />
+            <ParameterReadout label="Mud Flow" value={currentParameters?.mudFlow ?? '—'} unit="L/min" icon={Droplets} />
+            <ParameterReadout label="Mud Weight" value={currentParameters?.mudWeight ?? '—'} unit="ppg" icon={Waves} />
+            <ParameterReadout label="Pressure" value={currentParameters?.pressure.toLocaleString() ?? '—'} unit="psi" icon={Gauge} />
+            <ParameterReadout label="ECD" value={currentParameters?.ecd ?? '—'} unit="ppg" icon={BarChart3} />
+            <ParameterReadout label="Hook Load" value={currentParameters?.hookLoad ?? '—'} unit="klbs" icon={Activity} />
           </div>
         </div>
 

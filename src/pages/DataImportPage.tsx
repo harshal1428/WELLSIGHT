@@ -10,6 +10,33 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs
 
 type ReviewStatus = 'Selected' | 'Processing' | 'Needs Review' | 'Approved' | 'Rejected' | 'Failed';
 
+function parseCsvRecords(text: string): string[][] {
+  const records: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (character === '"') {
+      if (quoted && text[index + 1] === '"') { field += '"'; index += 1; }
+      else quoted = !quoted;
+    } else if (character === ',' && !quoted) {
+      row.push(field); field = '';
+    } else if ((character === '\n' || character === '\r') && !quoted) {
+      if (character === '\r' && text[index + 1] === '\n') index += 1;
+      row.push(field); field = '';
+      if (row.some((value) => value.trim())) records.push(row);
+      row = [];
+    } else {
+      field += character;
+    }
+  }
+  if (quoted) throw new Error('CSV contains an unclosed quoted field.');
+  row.push(field);
+  if (row.some((value) => value.trim())) records.push(row);
+  return records;
+}
+
 interface PendingRecord {
   tempId: string;
   status: ReviewStatus;
@@ -84,7 +111,7 @@ export function DataImportPage() {
     }
 
     if (!fullText.trim()) {
-      throw new Error("No readable text found in PDF. Scanned-document OCR is not supported in this prototype.");
+      throw new Error("No readable text found in this PDF. Text extraction for scanned image-only documents is unavailable.");
     }
 
     setPendingRecords(prev => [...prev, {
@@ -120,17 +147,17 @@ export function DataImportPage() {
 
   const processCSV = async (file: File) => {
     const text = await file.text();
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
-    if (lines.length < 2) throw new Error("CSV must have a header row and at least one data row.");
-    const headers = lines[0].split(',').map(h => h.trim());
+    const rows = parseCsvRecords(text);
+    if (rows.length < 2) throw new Error("CSV must have a header row and at least one data row.");
+    const headers = rows[0].map((header) => header.trim());
     
     if (headers.includes('run_id') || headers.includes('start_depth_m') || headers.includes('end_depth_m')) {
       throw new Error("This file appears to contain drilling-run/interval data rather than historical incidents. Please map fields to the historical-event schema (Requires id, wellId, eventType, depth, severity).");
     }
     
     const newRecords: PendingRecord[] = [];
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+    for (let i = 1; i < rows.length; i++) {
+      const values = rows[i];
       const row: any = {};
       headers.forEach((header, index) => {
         let val = values[index] ? values[index].trim() : '';
@@ -164,7 +191,7 @@ export function DataImportPage() {
     if (!row.id) errors.push("Missing ID");
     if (!row.wellId) errors.push("Missing Well ID");
     if (!['Mud Loss', 'Stuck Pipe', 'Kick', 'Torque Spike', 'Cementing Issue', 'Fishing', 'NPT'].includes(row.eventType)) errors.push("Invalid eventType");
-    if (typeof row.depth !== 'number' || isNaN(row.depth)) errors.push("Invalid depth");
+    if (typeof row.depth !== 'number' || !Number.isFinite(row.depth) || row.depth <= 0) errors.push("Invalid depth");
     if (!['F1', 'F2', 'F3', 'F4', 'F5'].includes(row.formation)) errors.push("Invalid formation");
     if (!['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(row.severity)) errors.push("Invalid severity");
     if (!row.description) errors.push("Missing description");
@@ -196,7 +223,7 @@ export function DataImportPage() {
       durationHours: record.data.durationHours,
       sourceMetadata: {
         filename: record.filename,
-        extractedText: record.extractedText.substring(0, 500) + (record.extractedText.length > 500 ? '...' : ''),
+        extractedText: record.extractedText,
         extractionMethod: record.extractionMethod,
         importTimestamp: new Date().toISOString()
       }
@@ -226,32 +253,8 @@ export function DataImportPage() {
     }));
   };
 
-  const loadSampleData = () => {
-    const sampleRecord: PendingRecord = {
-      tempId: createTempId(),
-      status: 'Needs Review',
-      filename: 'SampleData.json',
-      extractionMethod: 'Sample Data',
-      extractedText: '{"id": "EV-SAMPLE", "eventType": "Torque Spike"}',
-      data: {
-        id: "EV-SAMPLE-01",
-        wellId: "OFFSET-1",
-        eventType: "Torque Spike",
-        depth: 3500,
-        formation: "F4",
-        severity: "MEDIUM",
-        description: "Unexpected torque spike during drilling.",
-        mitigation: "Reduced WOB and circulated.",
-        sourceDocument: "DOC-2023-01",
-        timestamp: "2023-01-15T08:00:00Z",
-        durationHours: 2
-      }
-    };
-    setPendingRecords(prev => [...prev, sampleRecord]);
-  };
-
   const handleClearRecords = () => {
-    if (confirm("Are you sure you want to clear all imported records? This will permanently delete your session imports without affecting the seeded dataset.")) {
+    if (confirm("Clear all imported records stored in this browser? This action cannot be undone.")) {
       clearImportedRecords();
     }
   };
@@ -263,13 +266,13 @@ export function DataImportPage() {
       <div className="flex-1 space-y-6">
         <SectionHeader 
           title="Historical Records Studio" 
-          subtitle="Import, parse, and review historical well records (CSV, JSON, PDF). Browser-based prototype." 
+          subtitle="Import, parse, and review historical well records (CSV, JSON, PDF). Files are processed in this browser."
           icon={Upload} 
         />
 
         <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-sm text-blue-400 text-center flex items-center justify-center gap-2">
           <AlertCircle size={16} />
-          <span><strong>Browser-based prototype.</strong> Files are processed locally for demonstration. No records are sent to OIL systems or a backend.</span>
+          <span><strong>Local processing.</strong> Imported files remain in this browser and are not sent to an operations system or server.</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -297,17 +300,10 @@ export function DataImportPage() {
               </div>
 
               <button 
-                onClick={loadSampleData}
-                className="w-full py-2 bg-navy-800 hover:bg-navy-700 text-slate-300 text-xs rounded border border-border-subtle transition-colors mb-2"
-              >
-                Load Built-in Sample Record
-              </button>
-
-              <button 
                 onClick={handleClearRecords}
                 className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs rounded border border-red-500/30 transition-colors"
               >
-                Clear All Approved Demo Records
+                Clear All Imported Records
               </button>
             </div>
 
@@ -371,6 +367,7 @@ export function DataImportPage() {
 
           <div className="mb-4">
              <StatusBadge status={selectedRecord.status} />
+             {selectedRecord.extractionMethod === 'PDF Text' && <p className="mt-2 rounded bg-amber-500/10 p-2 text-xs text-amber-200">Text is extracted from the PDF, but event fields must be mapped and checked manually before approval.</p>}
              {selectedRecord.errorMessage && (
                <p className="text-xs text-red-400 mt-2 bg-red-500/10 p-2 rounded">{selectedRecord.errorMessage}</p>
              )}

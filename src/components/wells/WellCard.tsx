@@ -32,7 +32,7 @@ export function WellCard({ well, compact = false, onClick }: WellCardProps) {
         <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-400">
           <span className="flex items-center gap-1">
             <MapPin size={11} />
-            {well.distanceFromActiveWell} km
+            {Number.isFinite(well.distanceFromActiveWell) ? `${well.distanceFromActiveWell} km` : 'Distance unavailable'}
           </span>
           <span>{well.totalDepth.toLocaleString()}m TD</span>
           {eventCount > 0 && (
@@ -65,7 +65,7 @@ export function WellCard({ well, compact = false, onClick }: WellCardProps) {
       <div className="grid grid-cols-3 gap-3 text-xs mb-3">
         <div>
           <span className="text-slate-500">Distance</span>
-          <p className="text-white font-medium mt-0.5">{well.distanceFromActiveWell} km</p>
+          <p className="text-white font-medium mt-0.5">{Number.isFinite(well.distanceFromActiveWell) ? `${well.distanceFromActiveWell} km` : 'Unavailable'}</p>
         </div>
         <div>
           <span className="text-slate-500">Total Depth</span>
