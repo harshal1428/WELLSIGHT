@@ -57,7 +57,9 @@ export function KnowledgePage() {
   // Compile all historical cases
   const allCases: SearchResult[] = useMemo(() => {
     return nearbyWells.flatMap(well => 
-      well.historicalEvents.map(event => {
+      well.historicalEvents
+        .filter(event => event.sourceMetadata?.extractionMethod !== 'Sample Data')
+        .map(event => {
         // Prototype relevance scoring logic
         let score = 50;
         
@@ -79,7 +81,7 @@ export function KnowledgePage() {
         score = Math.min(score, 99);
 
         return { event, well, relevanceScore: score };
-      })
+        })
     );
   }, [nearbyWells, activeWell]);
 
@@ -264,7 +266,7 @@ export function KnowledgePage() {
                  </div>
                  <h3 className="text-lg font-bold text-white mb-2">No historical cases found</h3>
                  <p className="text-sm text-slate-400 mb-6 max-w-md">
-                   No historical cases match the selected context. Try adjusting your filters or search query.
+                   No historical records match this search. Adjust the selected filters or search query.
                  </p>
                  <button 
                    onClick={() => setFilters({ searchQuery: '', eventType: 'ALL', formation: 'ALL', reservoir: 'ALL', severity: 'ALL', distance: 'ALL', sortBy: 'Relevance' })}
@@ -294,7 +296,7 @@ export function KnowledgePage() {
                <WorkflowStep text="Relevant historical cases" />
                <WorkflowStep text="Evidence-backed decision support" highlight />
              </div>
-             <p className="text-[9px] text-slate-500 italic mt-5 text-center bg-navy-950 py-1.5 rounded">Prototype knowledge workflow</p>
+             <p className="text-[9px] text-slate-500 italic mt-5 text-center bg-navy-950 py-1.5 rounded">Indexed Knowledge Retrieval System</p>
            </div>
 
            <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-5 mb-6">

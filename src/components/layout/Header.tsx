@@ -21,7 +21,7 @@ export function Header() {
   }, []);
 
   return (
-    <header className="h-14 bg-surface-secondary border-b border-border-default flex items-center justify-between px-5 shrink-0">
+    <header className="app-header h-14 bg-surface-secondary border-b border-border-default flex items-center justify-between px-5 shrink-0">
       {/* ── Left: Active Well Selector ───────────────────────── */}
       <div className="flex items-center gap-4">
         <div className="relative" ref={selectorRef}>

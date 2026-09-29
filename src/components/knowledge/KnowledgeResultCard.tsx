@@ -54,14 +54,7 @@ export function KnowledgeResultCard({ event, well, relevanceScore, onClick }: Kn
       
       {/* Footer */}
       <div className="flex justify-between items-center pt-2 text-[10px] text-slate-500">
-        <span className="flex items-center gap-2">
-           {event.sourceMetadata ? (
-             <span className="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-1.5 py-0.5 rounded font-bold">Imported Demo</span>
-           ) : (
-             <span className="bg-slate-500/20 text-slate-400 border border-slate-500/30 px-1.5 py-0.5 rounded font-bold">Seeded Demo</span>
-           )}
-           <span>Source: {event.sourceMetadata ? event.sourceMetadata.filename : 'Synthetic demo document'}</span>
-        </span>
+        <span className="truncate" title={event.sourceMetadata?.filename}>Source: {event.sourceMetadata?.filename || event.sourceDocument}</span>
         <span className="flex items-center gap-1 text-accent-400 group-hover:underline">View Case Details <ChevronRight size={12} /></span>
       </div>
     </div>

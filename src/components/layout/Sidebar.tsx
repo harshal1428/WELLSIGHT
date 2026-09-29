@@ -10,6 +10,7 @@ import {
   FileBarChart,
   Waves,
   Upload,
+  MessageSquare,
 } from 'lucide-react';
 
 const navItems = [
@@ -22,6 +23,7 @@ const navItems = [
   { to: '/alerts',        label: 'Alerts',               icon: Bell },
   { to: '/reports',       label: 'Reports',              icon: FileBarChart },
   { to: '/import',        label: 'Data Import',          icon: Upload },
+  { to: '/chat',          label: 'AI Chat',            icon: MessageSquare },
 ];
 
 export function Sidebar() {
@@ -67,7 +69,7 @@ export function Sidebar() {
       <div className="px-5 py-4 border-t border-border-default">
         <p className="text-[11px] font-semibold text-navy-300 uppercase tracking-widest">OFFSETIQ</p>
         <p className="text-[10px] text-navy-400 mt-0.5">Offset Well Intelligence</p>
-        <p className="text-[10px] text-navy-500 mt-1">Decision Support • v0.1 Prototype</p>
+        <p className="text-[10px] text-navy-500 mt-1">Well intelligence workspace</p>
       </div>
     </aside>
   );

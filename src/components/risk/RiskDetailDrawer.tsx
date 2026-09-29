@@ -1,7 +1,7 @@
 import type { CalculatedRisk } from '../../utils/riskScoring';
 import type { Well } from '../../types';
 import { X, CheckCircle2, AlertCircle } from 'lucide-react';
-import { RiskBadge, SeverityBadge } from '../ui/Badges';
+import { SeverityBadge } from '../ui/Badges';
 
 interface Props {
   risk: CalculatedRisk | null;
@@ -17,10 +17,9 @@ export function RiskDetailDrawer({ risk, onClose }: Props) {
       <div className="flex items-center justify-between p-5 border-b border-border-subtle bg-surface-card">
         <div>
           <h2 className="text-lg font-bold text-white">{risk.riskType === 'Torque Spike' ? 'Torque / Drag' : risk.riskType}</h2>
-          <p className="text-sm text-slate-400">Prototype Score: {risk.score} / 100</p>
+          <p className="text-sm text-slate-400">{risk.supportingCases.length} matching historical events · {risk.comparableWellsCount} offset wells</p>
         </div>
         <div className="flex items-center gap-4">
-          <RiskBadge level={risk.level} />
           <button onClick={onClose} className="p-2 hover:bg-navy-800 rounded-lg text-slate-400 hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
@@ -47,11 +46,9 @@ export function RiskDetailDrawer({ risk, onClose }: Props) {
                   <p className={`text-sm font-medium ${factor.matched ? 'text-white' : 'text-slate-500'}`}>{factor.name}</p>
                   <p className="text-xs text-slate-400">{factor.description}</p>
                 </div>
-                <div className="ml-auto">
-                  <span className={`text-xs font-mono ${factor.matched ? 'text-accent-400' : 'text-slate-600'}`}>
-                    +{factor.scoreContribution}
-                  </span>
-                </div>
+                <span className={`ml-auto text-[10px] uppercase tracking-wide ${factor.matched ? 'text-emerald-400' : 'text-slate-500'}`}>
+                  {factor.matched ? 'Matched' : 'No match'}
+                </span>
               </div>
             ))}
           </div>

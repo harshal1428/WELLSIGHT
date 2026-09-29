@@ -1,5 +1,5 @@
 import type { Well, Alert } from '../types';
-import { calculateRiskForType, RISK_CATEGORIES } from './riskScoring';
+import { calculateRiskForType, getHighestRecordedSeverity, RISK_CATEGORIES } from './riskScoring';
 
 
 export function generateAlertsForWell(activeWell: Well, nearbyWells: Well[]): Alert[] {
@@ -10,32 +10,37 @@ export function generateAlertsForWell(activeWell: Well, nearbyWells: Well[]): Al
     calculateRiskForType(riskType, activeWell, nearbyWells)
   );
 
-  // Generate alerts for HIGH or CRITICAL risks
+  const currentDepth = activeWell.currentDepth || activeWell.totalDepth;
+
+  // Surface records with a formation or depth match, using recorded facts only.
   calculatedRisks.forEach((risk) => {
-    if (risk.score >= 60) {
-      const isCritical = risk.score >= 80;
+    const relevantCases = risk.supportingCases.filter((event) =>
+      event.formation === activeWell.formation || Math.abs(event.depth - currentDepth) <= 100,
+    );
+    if (relevantCases.length > 0) {
+      const isCritical = getHighestRecordedSeverity(relevantCases) === 'CRITICAL';
       
       const evidenceItems = risk.factors
         .filter(f => f.matched)
         .map(f => f.description);
         
-      if (risk.supportingCases.length > 0) {
-        const closestCase = risk.supportingCases[0];
+      if (relevantCases.length > 0) {
+        const closestCase = relevantCases.sort((a, b) => Math.abs(a.depth - currentDepth) - Math.abs(b.depth - currentDepth))[0];
         evidenceItems.push(`Comparable historical case: ${closestCase.eventType} at ${closestCase.depth}m in ${closestCase.sourceDocument}`);
       }
 
       // Stable ID based on well ID and risk type
-      const stableId = `PROTOTYPE-ALERT-${activeWell.id}-${risk.riskType.replace(/\s+/g, '-').toUpperCase()}`;
+      const stableId = `HISTORICAL-MATCH-${activeWell.id}-${risk.riskType.replace(/\s+/g, '-').toUpperCase()}`;
 
       alerts.push({
         id: stableId,
-        title: `Proactive Alert: ${risk.riskType} Risk`,
-        message: `Prototype alert generated due to elevated historical relevance. Prototype score: ${risk.score}/100.`,
+        title: `Historical ${risk.riskType} match`,
+        message: `${relevantCases.length} historical event record${relevantCases.length === 1 ? '' : 's'} match the current formation or fall within 100 m of current depth.`,
         priority: isCritical ? 'CRITICAL' : 'WARNING',
         wellId: activeWell.id,
         depth: activeWell.currentDepth || activeWell.totalDepth,
         formation: activeWell.formation,
-        timestamp: new Date().toISOString(), // In a real app this would be stable, we'll keep it as now for demo or could use a fixed string
+        timestamp: activeWell.drillingDate,
         acknowledged: false,
         status: 'NEW',
         evidenceItems,

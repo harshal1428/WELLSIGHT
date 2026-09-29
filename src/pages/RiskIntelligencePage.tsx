@@ -12,6 +12,7 @@ import {
   RiskMatrix 
 } from '../components/risk';
 import { calculateRiskForType, RISK_CATEGORIES } from '../utils/riskScoring';
+import { RiskAnalyticsCharts } from '../components/risk/RiskAnalyticsCharts';
 
 
 export function RiskIntelligencePage() {
@@ -62,6 +63,7 @@ export function RiskIntelligencePage() {
             ))}
           </div>
 
+          <RiskAnalyticsCharts risks={calculatedRisks} />
           <RiskTimeline activeWell={activeWell} risks={calculatedRisks} />
           <AlertPreview risks={calculatedRisks} />
         </div>
