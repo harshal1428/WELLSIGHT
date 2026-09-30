@@ -57,7 +57,7 @@ export function KnowledgePage() {
   // Compile all historical cases
   const allCases: SearchResult[] = useMemo(() => {
     return [activeWell, ...nearbyWells].flatMap(well =>
-      well.historicalEvents.map(event => {
+      well.historicalEvents.filter(event => event.sourceMetadata?.extractionMethod !== 'Sample Data').map(event => {
         // Historical relevance scoring logic
         let score = 50;
         

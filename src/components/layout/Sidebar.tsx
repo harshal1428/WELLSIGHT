@@ -11,6 +11,7 @@ import {
   Waves,
   Upload,
   BrainCircuit,
+  MessageSquare,
 } from 'lucide-react';
 
 const navItems = [
@@ -24,6 +25,7 @@ const navItems = [
   { to: '/reports',       label: 'Reports',              icon: FileBarChart },
   { to: '/import',        label: 'Data Import',          icon: Upload },
   { to: '/intelligence',  label: 'Well Intelligence',    icon: BrainCircuit },
+  { to: '/chat',          label: 'AI Chat',              icon: MessageSquare },
 ];
 
 export function Sidebar() {

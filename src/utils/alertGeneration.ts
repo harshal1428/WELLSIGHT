@@ -1,5 +1,5 @@
 import type { Well, Alert } from '../types';
-import { calculateRiskForType, RISK_CATEGORIES } from './riskScoring';
+import { calculateRiskForType, getHighestRecordedSeverity, RISK_CATEGORIES } from './riskScoring';
 
 
 export function generateAlertsForWell(activeWell: Well, nearbyWells: Well[]): Alert[] {
@@ -10,49 +10,41 @@ export function generateAlertsForWell(activeWell: Well, nearbyWells: Well[]): Al
     calculateRiskForType(riskType, activeWell, nearbyWells)
   );
 
-  // Generate alerts for HIGH or CRITICAL risks
+  const currentDepth = activeWell.currentDepth || activeWell.totalDepth;
+
+  // Surface records with a formation or depth match, using recorded facts only.
   calculatedRisks.forEach((risk) => {
-    if (risk.score >= 60) {
-      const isCritical = risk.score >= 80;
+    const relevantCases = risk.supportingCases.filter((event) =>
+      event.formation === activeWell.formation || Math.abs(event.depth - currentDepth) <= 100,
+    );
+    if (relevantCases.length > 0) {
+      const closestCase = [...relevantCases].sort((a, b) => Math.abs(a.depth - currentDepth) - Math.abs(b.depth - currentDepth))[0];
+      const isCritical = getHighestRecordedSeverity(relevantCases) === 'CRITICAL';
       
       const evidenceItems = risk.factors
         .filter(f => f.matched)
         .map(f => f.description);
         
-      if (risk.supportingCases.length > 0) {
-        const closestCase = risk.supportingCases[0];
-        evidenceItems.push(`Comparable historical case: ${closestCase.eventType} at ${closestCase.depth}m in ${closestCase.sourceDocument}`);
-      }
+      evidenceItems.push(`Comparable historical case: ${closestCase.eventType} at ${closestCase.depth}m in ${closestCase.sourceDocument}`);
 
       // Stable ID based on well ID and risk type
-      const stableId = `REFERENCE-ALERT-${activeWell.id}-${risk.riskType.replace(/\s+/g, '-').toUpperCase()}`;
+      const stableId = `HISTORICAL-MATCH-${activeWell.id}-${risk.riskType.replace(/\s+/g, '-').toUpperCase()}`;
 
       alerts.push({
         id: stableId,
-        title: `Proactive Alert: ${risk.riskType} Risk`,
-        message: `Historical reference alert based on local relevance scoring. Score: ${risk.score}/100.`,
+        title: `Historical ${risk.riskType} match`,
+        message: `${relevantCases.length} historical event record${relevantCases.length === 1 ? '' : 's'} match the current formation or fall within 100 m of current depth.`,
         priority: isCritical ? 'CRITICAL' : 'WARNING',
         wellId: activeWell.id,
         depth: activeWell.currentDepth || activeWell.totalDepth,
         formation: activeWell.formation,
-        timestamp: new Date().toISOString(),
+        timestamp: closestCase.timestamp,
         acknowledged: false,
         status: 'NEW',
         evidenceItems,
         mitigationActions: risk.mitigations.length > 0 ? risk.mitigations : ['No specific historical mitigations recorded.'],
       });
     }
-  });
-
-  // Also include the deterministic ones from mockData if we want, or just rely on these generated ones.
-  // The requirement says: "Use the existing Phase 5 risk assessments and historical drilling-event data as the source for alert candidates... Generate alerts using deterministic rules and stable mock data."
-  // So generating them from the risks is exactly what is needed.
-
-  // Let's ensure a stable timestamp by using the well's drilling date or active well timestamp.
-  const baseDate = new Date();
-  alerts.forEach((alert, index) => {
-    const d = new Date(baseDate.getTime() - index * 3600000); // offset by an hour each so they sort nicely
-    alert.timestamp = d.toISOString();
   });
 
   return alerts;

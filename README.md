@@ -1,30 +1,52 @@
 # WELLSIGHT
 
-Offset well knowledge and decision support for drilling operations.
+WELLSIGHT is a browser-based well monitoring and intelligence workspace for reviewing well context, historical event records, risk evidence, alerts, reports, imports, and AI-assisted analysis.
 
 ## Run locally
 
-1. Install Node.js and npm.
+1. Install Node.js 20.19 or newer and npm.
 2. Run `npm install`.
-3. Copy `.env.example` to `.env.local` and set `VITE_CARTO_API_KEY` to your CARTO API key. The map falls back to OpenStreetMap when no key is set.
-4. Run `npm run dev`.
+3. Copy `.env.example` to `.env.local` and add the values you need:
 
-`VITE_*` variables are included in the client bundle. CARTO keys used here are public browser keys; restrict their allowed domains in CARTO. Do not put private server credentials in a `VITE_*` variable.
+   ```dotenv
+   VITE_CARTO_API_KEY=your_restricted_public_carto_key
+   GEMINI_API_KEY=your_server_only_gemini_key
+   ```
+
+   `VITE_CARTO_API_KEY` is exposed in the browser bundle, so restrict it to your domains. `GEMINI_API_KEY` is used only by the server endpoint and must never be renamed to a `VITE_*` variable or committed.
+4. Run `npm run dev` and open the URL printed by Vite.
+
+## Features
+
+- Well overview, monitoring charts, nearby wells, and depth correlation.
+- Historical case search, evidence review, risk evidence summaries, and alerts.
+- Import of CSV, JSON, and searchable PDF records with field review.
+- Well Intelligence workflows for offsets, timeline, evidence, data quality, feedback, fingerprints, shadow wells, knowledge graph, warnings, and counterfactual review.
+- AI Chat sends the prompt and selected well context through the server endpoint to Google Gemini. Do not send confidential information unless your organization permits that processing. AI responses are analysis support, not operating instructions.
+- Reports with browser print/PDF and JSON, CSV, and Markdown export; engineer notes are stored in this browser.
 
 ## Deploy to Vercel
 
-1. Push this repository to GitHub, GitLab, or Bitbucket and import it into Vercel.
-2. Keep the default project root. Vercel detects Vite; the build command is `npm run build`, the output directory is `dist`, and Node.js 20.19 or newer is required.
-3. In Vercel project settings, add `VITE_CARTO_API_KEY` for Preview and Production (and Development if desired). Use the restricted public browser key; `VITE_*` values are included in the client bundle. The map falls back to OpenStreetMap if the variable is absent.
-4. Redeploy after adding or changing the environment variable. `vercel.json` rewrites app routes to `index.html` for client-side routing.
+Import the repository in Vercel with the project root set to this repository. Use:
 
-The deployed frontend supports the same browser-side workflows as local use. Saved readings, alert states, notes, and feedback remain in that browser's local storage; imported records are held for the current browser session. They are not shared with other users or devices and can be cleared by browser storage settings. Vercel deployment does not add a telemetry service, backend, login, or shared database.
+- Framework preset: Vite
+- Build command: `npm run build`
+- Output directory: `dist`
+- Node.js: 20.19 or newer
+
+Add `VITE_CARTO_API_KEY` (optional public browser key) and `GEMINI_API_KEY` (private server environment variable) in Vercel Project Settings for the environments where the app will run, then redeploy. `vercel.json` preserves client-side routes; `/api/chat` is served by the Vercel function in `api/chat.ts`.
+
+The chat endpoint has request size and input-count limits, but this project does not currently provide user authentication or a durable per-user rate limit. Before exposing Gemini chat publicly, put it behind your organization's authentication and abuse controls. The endpoint sends the user's prompt and well context to Google's Gemini service; this is not an on-premises or air-gapped inference path.
+
+## Data and deployment limits
+
+The browser supports local workflows, but this repository does not connect to a live rig telemetry source or provide shared server-side well data, user authentication, or cross-device persistence. Imported records are held in browser session storage; notes, report reviews, saved readings, and feedback use browser local storage. These records are not shared between users or devices. Monitoring values and historical evidence must not be treated as verified live readings or calibrated operational risk predictions.
+
+The Gemini endpoint is a separate cloud integration and is not a substitute for a validated telemetry or operational backend. Do not use generated responses to direct drilling operations.
 
 ## Scripts
 
-- `npm run dev` — start the local development server.
-- `npm run build` — type-check and create the production build in `dist`.
+- `npm run dev` — start Vite with the local `/api/chat` middleware.
+- `npm run build` — type-check and create a production build in `dist`.
 - `npm run lint` — run Oxlint.
 - `npm run preview` — preview the production build locally.
-
-The application is a browser-based decision-support interface using local reference well, event, and parameter records. Live rig telemetry, an application backend, user authentication, and persistent server storage are not connected. Values shown in monitoring and risk views are not operational measurements or calibrated predictions. Connect and validate an approved telemetry and data service before operational use.

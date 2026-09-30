@@ -53,11 +53,11 @@ export function DataImportPage() {
 
   const [pendingRecords, setPendingRecords] = useState<PendingRecord[]>([]);
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      await processFile(file);
+      await Promise.all(Array.from(e.target.files).map(processFile));
     }
     // reset input
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -259,6 +259,12 @@ export function DataImportPage() {
     }
   };
 
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+    if (event.dataTransfer.files.length > 0) void Promise.all(Array.from(event.dataTransfer.files).map(processFile));
+  };
+
   const selectedRecord = pendingRecords.find(r => r.tempId === selectedRecordId);
 
   return (
@@ -279,21 +285,29 @@ export function DataImportPage() {
           {/* Left Column: Upload */}
           <div className="space-y-6">
             <div className="bg-surface-card border border-border-default rounded-xl p-5">
-              <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                <Upload size={16} className="text-accent-400" /> Upload File
+              <h3 className="text-sm font-bold text-white mb-1 flex items-center gap-2">
+                <Upload size={16} className="text-accent-400" /> Add source files
               </h3>
+              <p className="text-xs text-slate-500 mb-4">CSV, JSON, or searchable PDF. Files are parsed in this browser.</p>
 
               <div 
-                className="border-2 border-dashed border-border-subtle hover:border-accent-500/50 transition-colors rounded-xl p-8 flex flex-col items-center justify-center text-center bg-navy-900/50 cursor-pointer mb-4"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') fileInputRef.current?.click(); }}
+                onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed transition-colors rounded-xl p-8 flex flex-col items-center justify-center text-center bg-navy-900/50 cursor-pointer mb-4 ${isDragging ? 'border-accent-500 bg-accent-500/10' : 'border-border-subtle hover:border-accent-500/50'}`}
                 onClick={() => fileInputRef.current?.click()}
               >
                 <FileText size={32} className="text-slate-500 mb-3" />
-                <p className="text-sm text-white font-medium mb-1">Click to select a file</p>
+                <p className="text-sm text-white font-medium mb-1">Drop files here or click to browse</p>
                 <p className="text-xs text-slate-500">Supports .csv, .json, and text-based .pdf</p>
                 <input 
                   type="file" 
                   ref={fileInputRef} 
                   className="hidden" 
+                  multiple
                   accept=".csv,.json,application/json,text/csv,application/pdf" 
                   onChange={handleFileChange}
                 />

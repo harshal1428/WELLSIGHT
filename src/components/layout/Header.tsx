@@ -16,10 +16,11 @@ const searchablePages: SearchResult[] = [
   { id: 'nearby', title: 'Nearby Wells', detail: 'Map and nearby well records', route: '/nearby-wells' },
   { id: 'correlation', title: 'Well Correlation', detail: 'Compare wells and formations', route: '/correlation' },
   { id: 'knowledge', title: 'Historical Knowledge', detail: 'Historical drilling events and cases', route: '/knowledge' },
-  { id: 'risk', title: 'Risk Intelligence', detail: 'Risk scores and assessments', route: '/risk' },
+  { id: 'risk', title: 'Risk Intelligence', detail: 'Historical event evidence and risk categories', route: '/risk' },
   { id: 'alerts', title: 'Alerts', detail: 'Current alerts and priorities', route: '/alerts' },
   { id: 'reports', title: 'Reports', detail: 'Well reports and summaries', route: '/reports' },
   { id: 'import', title: 'Data Import', detail: 'Import well and drilling data', route: '/import' },
+  { id: 'chat', title: 'AI Chat', detail: 'Ask questions about the selected well and available records', route: '/chat' },
   { id: 'intelligence', title: 'Evidence-Centered Well Intelligence', detail: 'Historical timeline, evidence chain, data quality, graph, and feedback', route: '/intelligence' },
 ];
 
@@ -73,7 +74,7 @@ export function Header() {
   };
 
   return (
-    <header className="h-14 bg-surface-secondary border-b border-border-default flex items-center justify-between px-5 shrink-0">
+    <header className="app-header h-14 bg-surface-secondary border-b border-border-default flex items-center justify-between px-5 shrink-0">
       {/* ── Left: Active Well Selector ───────────────────────── */}
       <div className="flex items-center gap-4">
         <div className="relative" ref={selectorRef}>

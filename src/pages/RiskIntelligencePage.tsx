@@ -12,6 +12,7 @@ import {
   RiskMatrix 
 } from '../components/risk';
 import { calculateRiskForType, RISK_CATEGORIES } from '../utils/riskScoring';
+import { RiskAnalyticsCharts } from '../components/risk/RiskAnalyticsCharts';
 
 
 export function RiskIntelligencePage() {
@@ -41,7 +42,7 @@ export function RiskIntelligencePage() {
         <div className="text-sm font-semibold text-white">{activeWell.name}</div>
         <div className="text-xs text-slate-400 ml-4">Current Depth: <span className="text-white">{activeWell.currentDepth || activeWell.totalDepth} m</span></div>
         <div className="text-xs text-slate-400">Formation: <span className="text-white">{activeWell.formation}</span></div>
-        <div className="text-xs text-slate-400">Reservoir: <span className="text-white">{activeWell.reservoir}</span></div>
+        <div className="text-xs text-slate-400">Reservoir: <span className="text-white">{activeWell.reservoir ?? 'Unavailable'}</span></div>
         <div className="text-xs text-slate-400">Status: <span className="text-accent-400">{activeWell.status}</span></div>
         <div className="ml-auto bg-navy-800 text-[10px] text-slate-400 uppercase tracking-widest px-2 py-1 rounded">
           Historical context assessment
@@ -62,6 +63,7 @@ export function RiskIntelligencePage() {
             ))}
           </div>
 
+          <RiskAnalyticsCharts risks={calculatedRisks} />
           <RiskTimeline activeWell={activeWell} risks={calculatedRisks} />
           <AlertPreview risks={calculatedRisks} />
         </div>

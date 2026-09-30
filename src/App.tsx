@@ -21,6 +21,7 @@ import { ShadowWellPage } from './pages/intelligence/ShadowWellPage';
 import { KnowledgeGraphPage } from './pages/intelligence/KnowledgeGraphPage';
 import { EarlyWarningPage } from './pages/intelligence/EarlyWarningPage';
 import { CounterfactualPage } from './pages/intelligence/CounterfactualPage';
+import { ChatPage } from './pages/ChatPage';
 
 export default function App() {
   return (
@@ -48,6 +49,7 @@ export default function App() {
             <Route path="/intelligence/graph" element={<KnowledgeGraphPage />} />
             <Route path="/intelligence/warnings" element={<EarlyWarningPage />} />
             <Route path="/intelligence/counterfactual" element={<CounterfactualPage />} />
+            <Route path="/chat" element={<ChatPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
