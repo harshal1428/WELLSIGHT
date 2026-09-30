@@ -1,11 +1,11 @@
 export interface ChatInput {
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  messages: Array<{ role: 'user' | 'assistant'; content: string; attachments?: Array<{ name: string; type: string; text?: string; dataUrl?: string }> }>;
   context?: Record<string, unknown>;
 }
 
 export async function handleGeminiChat(rawBody: string, apiKey?: string): Promise<{ status: number; body: { reply?: string; error?: string } }> {
   if (!apiKey) return { status: 503, body: { error: 'Chat is not configured yet. Add GEMINI_API_KEY to the server environment.' } };
-  if (rawBody.length > 50000) return { status: 413, body: { error: 'Chat request is too large.' } };
+  if (rawBody.length > 4_500_000) return { status: 413, body: { error: 'Chat request is too large. Reduce the attachment size and try again.' } };
 
   let parsed: unknown;
   try {
@@ -42,7 +42,21 @@ export async function handleGeminiChat(rawBody: string, apiKey?: string): Promis
       signal: AbortSignal.timeout(55_000),
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemInstruction }] },
-        contents: messages.map((message) => ({ role: message.role === 'assistant' ? 'model' : 'user', parts: [{ text: message.content }] })),
+        contents: messages.map((message) => ({
+          role: message.role === 'assistant' ? 'model' : 'user',
+          parts: [
+            { text: message.content },
+            ...(message.attachments || []).flatMap((file) => {
+              const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
+              if (file.text) parts.push({ text: `Attached document: ${file.name}\n${file.text.slice(0, 30_000)}` });
+              if (file.dataUrl && ['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type)) {
+                const match = /^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/=]+)$/.exec(file.dataUrl);
+                if (match && match[2].length <= 3_400_000) parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+              }
+              return parts;
+            }),
+          ],
+        })),
         generationConfig: { maxOutputTokens: 1200, thinkingConfig: { thinkingLevel: 'low' } },
       }),
     });

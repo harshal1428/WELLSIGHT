@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, Check, CircleAlert, Copy, History, RotateCcw, Send, ShieldCheck, Sparkles, UserRound, Waves } from 'lucide-react';
+import { Bot, Check, CircleAlert, Copy, FileText, History, ImagePlus, RotateCcw, Send, ShieldCheck, Sparkles, UserRound, Waves, X } from 'lucide-react';
 import { useWellContext } from '../hooks/useWellContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 
@@ -8,6 +8,14 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   showAnalysisGraph?: boolean;
+  attachments?: ChatAttachment[];
+}
+
+interface ChatAttachment {
+  name: string;
+  type: string;
+  text?: string;
+  dataUrl?: string;
 }
 
 const suggestedQuestions = [
@@ -55,7 +63,10 @@ export function ChatPage() {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const [attachmentError, setAttachmentError] = useState('');
   const threadEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const depth = activeWell.currentDepth || activeWell.totalDepth;
   const context = useMemo(() => {
@@ -101,7 +112,10 @@ export function ChatPage() {
     const conversation: StoredConversation = {
       id: conversationId,
       title: firstUserMessage.content.slice(0, 72),
-      messages: conversationMessages,
+      messages: conversationMessages.map((message) => ({
+        ...message,
+        attachments: message.attachments?.map(({ name, type, text }) => ({ name, type, text })),
+      })),
       updatedAt: new Date().toISOString(),
     };
     setChatHistory((previous) => [conversation, ...previous.filter((item) => item.id !== conversationId)]
@@ -119,18 +133,20 @@ export function ChatPage() {
 
   const sendMessage = async (content = draft) => {
     const text = content.trim();
-    if (!text || isSending) return;
-    const userMessage: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text };
+    if ((!text && attachments.length === 0) || isSending) return;
+    const attached = attachments;
+    const userMessage: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text || `Please review the attached file${attached.length > 1 ? 's' : ''}.`, attachments: attached };
     const nextMessages = [...messages, userMessage];
     const conversationId = activeConversationId;
     setMessages(nextMessages);
     saveConversation(conversationId, nextMessages);
     setDraft('');
+    setAttachments([]);
     setError('');
     setIsSending(true);
 
     try {
-      if (suggestedQuestions.includes(text)) {
+      if (suggestedQuestions.includes(text) && attached.length === 0) {
         await new Promise((resolve) => window.setTimeout(resolve, 2000 + Math.random() * 1000));
         const events = context.nearbyHistoricalEvents;
         const matchingFormation = events.filter((event) => event.formation === context.activeWell.formation);
@@ -178,7 +194,7 @@ export function ChatPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: nextMessages.slice(-20).map(({ role, content }) => ({ role, content })),
+          messages: nextMessages.slice(-20).map(({ role, content, attachments: files }) => ({ role, content, attachments: files })),
           context,
         }),
       });
@@ -202,6 +218,47 @@ export function ChatPage() {
       setError(cause instanceof Error ? cause.message : 'The assistant could not respond. Please try again.');
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleFiles = async (fileList: FileList | null) => {
+    if (!fileList) return;
+    setAttachmentError('');
+    const accepted: ChatAttachment[] = [];
+    try {
+      for (const file of Array.from(fileList)) {
+        if (attachments.length + accepted.length >= 4) throw new Error('Attach up to 4 files per message.');
+        if (file.size > 2_500_000) throw new Error(`${file.name} is larger than the 2.5 MB limit.`);
+        if (file.type.startsWith('image/')) {
+          if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type)) throw new Error('Use a PNG, JPG, WEBP, or GIF image.');
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not read image.'));
+            reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
+            reader.readAsDataURL(file);
+          });
+          accepted.push({ name: file.name, type: file.type, dataUrl });
+        } else if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+          const pdfjs = await import('pdfjs-dist/legacy/build/pdf.js');
+          const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+          let text = '';
+          for (let pageNo = 1; pageNo <= Math.min(pdf.numPages, 30); pageNo += 1) {
+            const page = await pdf.getPage(pageNo);
+            const content = await page.getTextContent();
+            text += `${content.items.map((item) => 'str' in item ? item.str : '').join(' ')}\n`;
+            if (text.length > 30_000) break;
+          }
+          if (!text.trim()) throw new Error(`${file.name} has no extractable text.`);
+          accepted.push({ name: file.name, type: 'application/pdf', text: text.slice(0, 30_000) });
+        } else if (/\.(txt|md|csv|json|log)$/i.test(file.name) || ['text/plain', 'text/csv', 'application/json'].includes(file.type)) {
+          accepted.push({ name: file.name, type: file.type || 'text/plain', text: (await file.text()).slice(0, 30_000) });
+        } else {
+          throw new Error('Supported files: images, PDF, TXT, MD, CSV, JSON, and LOG.');
+        }
+      }
+      setAttachments((previous) => [...previous, ...accepted]);
+    } catch (cause) {
+      setAttachmentError(cause instanceof Error ? cause.message : 'Could not add the selected file.');
     }
   };
 
@@ -283,6 +340,7 @@ export function ChatPage() {
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${message.role === 'assistant' ? 'bg-accent-500/10 text-accent-400' : 'bg-navy-800 text-slate-300'}`}>{message.role === 'assistant' ? <Bot size={17} /> : <UserRound size={16} />}</div>
                   <div className="min-w-0 flex-1 pt-1">
                     <div className="flex items-center gap-2 mb-2"><span className="text-xs font-semibold text-white">{message.role === 'assistant' ? 'WELLSIGHT Assistant' : 'You'}</span>{message.role === 'assistant' && <button onClick={() => void copyMessage(message)} className="text-slate-500 hover:text-white" aria-label="Copy response">{copiedId === message.id ? <Check size={13} /> : <Copy size={13} />}</button>}</div>
+                    {message.attachments?.length ? <div className="mb-2 flex flex-wrap gap-2">{message.attachments.map((file, index) => <span key={`${file.name}-${index}`} className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-primary px-2.5 py-1.5 text-xs text-slate-300"><FileText size={13} className="text-accent-400" />{file.name}</span>)}</div> : null}
                     <div className="text-sm leading-7 text-slate-300 whitespace-pre-wrap break-words">{message.content}</div>
                     {message.showAnalysisGraph && currentParameters && (
                       <div className="mt-4 p-4 border border-border-default rounded-xl bg-navy-900/50 h-52">
@@ -315,8 +373,11 @@ export function ChatPage() {
           <div className="shrink-0 px-4 sm:px-8 pb-4 pt-2">
             {error && <div role="alert" className="max-w-3xl mx-auto mb-3 flex items-start gap-2 rounded-lg border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-xs text-rose-300"><CircleAlert size={15} className="mt-0.5 shrink-0" />{error}</div>}
             <form onSubmit={handleSubmit} className="max-w-3xl mx-auto rounded-2xl border border-border-strong bg-surface-primary p-2 focus-within:border-accent-500/60 shadow-sm">
+              <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif,.pdf,.txt,.md,.csv,.json,.log" multiple className="hidden" onChange={(event) => { void handleFiles(event.target.files); event.target.value = ''; }} aria-label="Choose document or image" />
+              {attachments.length > 0 && <div className="flex flex-wrap gap-2 px-2 pt-1">{attachments.map((file, index) => <span key={`${file.name}-${index}`} className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-card px-2 py-1 text-[11px] text-slate-300"><FileText size={12} className="text-accent-400" />{file.name}<button type="button" aria-label={`Remove ${file.name}`} onClick={() => setAttachments((previous) => previous.filter((_, itemIndex) => itemIndex !== index))} className="ml-1 text-slate-400 hover:text-white"><X size={12} /></button></span>)}</div>}
+              {attachmentError && <p role="alert" className="px-3 pt-2 text-xs text-rose-300">{attachmentError}</p>}
               <textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendMessage(); } }} rows={2} maxLength={8000} placeholder="Ask about this well or its historical records..." className="w-full resize-none bg-transparent border-0 outline-none text-sm text-white placeholder:text-slate-500 px-3 py-2" />
-              <div className="flex items-center justify-between px-2 pb-1"><span className="text-[10px] text-slate-500">Enter to send · Shift + Enter for a new line</span><button type="submit" disabled={!draft.trim() || isSending} className="w-9 h-9 rounded-xl flex items-center justify-center bg-accent-500 text-navy-950 hover:bg-accent-400 disabled:opacity-40 disabled:cursor-not-allowed" aria-label="Send message"><Send size={16} /></button></div>
+              <div className="flex items-center justify-between px-2 pb-1"><div className="flex items-center gap-3"><button type="button" onClick={() => fileInputRef.current?.click()} disabled={isSending || attachments.length >= 4} className="inline-flex h-9 items-center gap-2 rounded-xl border border-border-strong bg-surface-card px-3 text-xs font-semibold text-slate-200 hover:border-accent-500/60 hover:text-white disabled:opacity-50" aria-label="Add document or image"><ImagePlus size={15} className="text-accent-400" /><span>Add doc/image</span></button><span className="hidden sm:inline text-[10px] text-slate-500">Enter to send · Shift + Enter for a new line</span></div><button type="submit" disabled={(!draft.trim() && attachments.length === 0) || isSending} className="w-9 h-9 rounded-xl flex items-center justify-center bg-accent-500 text-navy-950 hover:bg-accent-400 disabled:opacity-40 disabled:cursor-not-allowed" aria-label="Send message"><Send size={16} /></button></div>
             </form>
             <p className="max-w-3xl mx-auto text-[10px] text-slate-600 mt-2 text-center">Use responses as analysis support. Confirm safety-critical decisions against approved procedures and qualified personnel.</p>
           </div>
