@@ -1,32 +1,36 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { WellProvider } from './hooks/useWellContext';
 import { AppLayout } from './components/layout/AppLayout';
-import { OverviewPage } from './pages/OverviewPage';
-import { LiveWellPage } from './pages/LiveWellPage';
-import { NearbyWellsPage } from './pages/NearbyWellsPage';
-import { CorrelationPage } from './pages/CorrelationPage';
-import { KnowledgePage } from './pages/KnowledgePage';
-import { RiskIntelligencePage } from './pages/RiskIntelligencePage';
-import { AlertsPage } from './pages/AlertsPage';
-import { ReportsPage } from './pages/ReportsPage';
-import { DataImportPage } from './pages/DataImportPage';
-import { IntelligencePage } from './pages/IntelligencePage';
-import { OffsetIntelligencePage } from './pages/intelligence/OffsetIntelligencePage';
-import { HistoricalTimelinePage } from './pages/intelligence/HistoricalTimelinePage';
-import { EvidenceChainPage } from './pages/intelligence/EvidenceChainPage';
-import { DataQualityPage } from './pages/intelligence/DataQualityPage';
-import { EngineerFeedbackPage } from './pages/intelligence/EngineerFeedbackPage';
-import { CaseFingerprintPage } from './pages/intelligence/CaseFingerprintPage';
-import { ShadowWellPage } from './pages/intelligence/ShadowWellPage';
-import { KnowledgeGraphPage } from './pages/intelligence/KnowledgeGraphPage';
-import { EarlyWarningPage } from './pages/intelligence/EarlyWarningPage';
-import { CounterfactualPage } from './pages/intelligence/CounterfactualPage';
-import { ChatPage } from './pages/ChatPage';
+
+const OverviewPage = lazy(() => import('./pages/OverviewPage').then(({ OverviewPage }) => ({ default: OverviewPage })));
+const LiveWellPage = lazy(() => import('./pages/LiveWellPage').then(({ LiveWellPage }) => ({ default: LiveWellPage })));
+const NearbyWellsPage = lazy(() => import('./pages/NearbyWellsPage').then(({ NearbyWellsPage }) => ({ default: NearbyWellsPage })));
+const CorrelationPage = lazy(() => import('./pages/CorrelationPage').then(({ CorrelationPage }) => ({ default: CorrelationPage })));
+const KnowledgePage = lazy(() => import('./pages/KnowledgePage').then(({ KnowledgePage }) => ({ default: KnowledgePage })));
+const RiskIntelligencePage = lazy(() => import('./pages/RiskIntelligencePage').then(({ RiskIntelligencePage }) => ({ default: RiskIntelligencePage })));
+const AlertsPage = lazy(() => import('./pages/AlertsPage').then(({ AlertsPage }) => ({ default: AlertsPage })));
+const ReportsPage = lazy(() => import('./pages/ReportsPage').then(({ ReportsPage }) => ({ default: ReportsPage })));
+const DataImportPage = lazy(() => import('./pages/DataImportPage').then(({ DataImportPage }) => ({ default: DataImportPage })));
+const IntelligencePage = lazy(() => import('./pages/IntelligencePage').then(({ IntelligencePage }) => ({ default: IntelligencePage })));
+const OffsetIntelligencePage = lazy(() => import('./pages/intelligence/OffsetIntelligencePage').then(({ OffsetIntelligencePage }) => ({ default: OffsetIntelligencePage })));
+const HistoricalTimelinePage = lazy(() => import('./pages/intelligence/HistoricalTimelinePage').then(({ HistoricalTimelinePage }) => ({ default: HistoricalTimelinePage })));
+const EvidenceChainPage = lazy(() => import('./pages/intelligence/EvidenceChainPage').then(({ EvidenceChainPage }) => ({ default: EvidenceChainPage })));
+const DataQualityPage = lazy(() => import('./pages/intelligence/DataQualityPage').then(({ DataQualityPage }) => ({ default: DataQualityPage })));
+const EngineerFeedbackPage = lazy(() => import('./pages/intelligence/EngineerFeedbackPage').then(({ EngineerFeedbackPage }) => ({ default: EngineerFeedbackPage })));
+const CaseFingerprintPage = lazy(() => import('./pages/intelligence/CaseFingerprintPage').then(({ CaseFingerprintPage }) => ({ default: CaseFingerprintPage })));
+const ShadowWellPage = lazy(() => import('./pages/intelligence/ShadowWellPage').then(({ ShadowWellPage }) => ({ default: ShadowWellPage })));
+const KnowledgeGraphPage = lazy(() => import('./pages/intelligence/KnowledgeGraphPage').then(({ KnowledgeGraphPage }) => ({ default: KnowledgeGraphPage })));
+const EarlyWarningPage = lazy(() => import('./pages/intelligence/EarlyWarningPage').then(({ EarlyWarningPage }) => ({ default: EarlyWarningPage })));
+const CounterfactualPage = lazy(() => import('./pages/intelligence/CounterfactualPage').then(({ CounterfactualPage }) => ({ default: CounterfactualPage })));
+const ChatPage = lazy(() => import('./pages/ChatPage').then(({ ChatPage }) => ({ default: ChatPage })));
+const DrillHealthPage = lazy(() => import('./pages/DrillHealthPage').then((module) => ({ default: module.DrillHealthPage })));
 
 export default function App() {
   return (
     <BrowserRouter>
       <WellProvider>
+        <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm text-slate-500">Loading WELLSIGHT…</div>}>
         <Routes>
           <Route element={<AppLayout />}>
             <Route path="/" element={<OverviewPage />} />
@@ -50,9 +54,11 @@ export default function App() {
             <Route path="/intelligence/warnings" element={<EarlyWarningPage />} />
             <Route path="/intelligence/counterfactual" element={<CounterfactualPage />} />
             <Route path="/chat" element={<ChatPage />} />
+            <Route path="/drilling/3d-health" element={<Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-sm text-slate-500">Loading Drill Health…</div>}><DrillHealthPage /></Suspense>} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
+        </Suspense>
       </WellProvider>
     </BrowserRouter>
   );

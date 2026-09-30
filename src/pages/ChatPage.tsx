@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, Check, CircleAlert, Copy, RotateCcw, Send, ShieldCheck, Sparkles, UserRound, Waves } from 'lucide-react';
+import { Bot, Check, CircleAlert, Copy, History, RotateCcw, Send, ShieldCheck, Sparkles, UserRound, Waves } from 'lucide-react';
 import { useWellContext } from '../hooks/useWellContext';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 
 interface ChatMessage {
@@ -11,14 +10,6 @@ interface ChatMessage {
   showAnalysisGraph?: boolean;
 }
 
-const keyPart1 = "AQ.Ab8RN6LxMGXg";
-const keyPart2 = "cIWINIU2koW54c-";
-const keyPart3 = "RHOUxzzhcXDPwgXLud1-YHA";
-const fallbackKey = keyPart1 + keyPart2 + keyPart3;
-
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || fallbackKey);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
 const suggestedQuestions = [
   'Summarize the latest drilling context',
   'Which nearby events match this formation?',
@@ -26,9 +17,40 @@ const suggestedQuestions = [
   'What information is missing from this well context?',
 ];
 
+interface StoredConversation {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+  updatedAt: string;
+}
+
+const CHAT_HISTORY_KEY = 'wellsight-chat-history-v1';
+
+function loadChatHistory(): StoredConversation[] {
+  try {
+    const stored = localStorage.getItem(CHAT_HISTORY_KEY);
+    if (!stored) return [];
+    const parsed: unknown = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is StoredConversation =>
+      item && typeof item.id === 'string' && typeof item.title === 'string' &&
+      typeof item.updatedAt === 'string' && Array.isArray(item.messages) &&
+      item.messages.every((message: ChatMessage) =>
+        message && typeof message.id === 'string' &&
+        (message.role === 'user' || message.role === 'assistant') && typeof message.content === 'string',
+      ),
+    ).slice(0, 25);
+  } catch {
+    return [];
+  }
+}
+
 export function ChatPage() {
   const { activeWell, currentParameters, nearbyWells, alerts, importedRecords } = useWellContext();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string>(() => crypto.randomUUID());
+  const [chatHistory, setChatHistory] = useState<StoredConversation[]>(loadChatHistory);
+  const [showPreviousChats, setShowPreviousChats] = useState(false);
   const [draft, setDraft] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
@@ -73,56 +95,111 @@ export function ChatPage() {
     threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, isSending]);
 
+  const saveConversation = (conversationId: string, conversationMessages: ChatMessage[]) => {
+    const firstUserMessage = conversationMessages.find((message) => message.role === 'user');
+    if (!firstUserMessage) return;
+    const conversation: StoredConversation = {
+      id: conversationId,
+      title: firstUserMessage.content.slice(0, 72),
+      messages: conversationMessages,
+      updatedAt: new Date().toISOString(),
+    };
+    setChatHistory((previous) => [conversation, ...previous.filter((item) => item.id !== conversationId)]
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, 25));
+  };
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(chatHistory));
+    } catch {
+      // Chat continues to work if browser storage is unavailable or full.
+    }
+  }, [chatHistory]);
+
   const sendMessage = async (content = draft) => {
     const text = content.trim();
     if (!text || isSending) return;
     const userMessage: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text };
     const nextMessages = [...messages, userMessage];
+    const conversationId = activeConversationId;
     setMessages(nextMessages);
+    saveConversation(conversationId, nextMessages);
     setDraft('');
     setError('');
     setIsSending(true);
 
     try {
-      const isPredefined = suggestedQuestions.includes(text);
-      if (isPredefined) {
-        await new Promise((resolve) => window.setTimeout(resolve, 1500 + Math.random() * 1500));
+      if (suggestedQuestions.includes(text)) {
+        await new Promise((resolve) => window.setTimeout(resolve, 2000 + Math.random() * 1000));
+        const events = context.nearbyHistoricalEvents;
+        const matchingFormation = events.filter((event) => event.formation === context.activeWell.formation);
+        const nearDepth = events.filter((event) => Math.abs(event.depthM - context.activeWell.depthM) <= 150);
+        const describeEvent = (event: typeof events[number]) => `• ${event.wellId} · ${event.eventType} · ${event.depthM.toLocaleString()} m · ${event.severity}: ${event.description}${event.mitigation ? ` Mitigation recorded: ${event.mitigation}` : ''}`;
+        let reply: string;
+
+        switch (text) {
+          case suggestedQuestions[0]:
+            reply = `${context.activeWell.id} is at ${context.activeWell.depthM.toLocaleString()} m in ${context.activeWell.formation}, reservoir ${context.activeWell.reservoir}, with status ${context.activeWell.status}. There are ${events.length} nearby historical event records and ${context.activeAlerts.length} alerts for this well. ${context.latestDrillingParameters ? 'Stored drilling parameter values are available in the workspace.' : 'No drilling parameter bundle is available.'} These values are workspace context, not a live telemetry connection.`;
+            break;
+          case suggestedQuestions[1]:
+            reply = matchingFormation.length
+              ? `Historical events in formation ${context.activeWell.formation}:\n\n${matchingFormation.slice(0, 8).map(describeEvent).join('\n\n')}\n\nThese records are for comparison and do not establish that the same conditions are present in the active well.`
+              : `No nearby historical event records in formation ${context.activeWell.formation} are available in the current workspace context.`;
+            break;
+          case suggestedQuestions[2]:
+            reply = nearDepth.length
+              ? `Historical events within 150 m of ${context.activeWell.depthM.toLocaleString()} m:\n\n${nearDepth.slice(0, 8).map(describeEvent).join('\n\n')}\n\nDepth proximity is a comparison aid, not a prediction or diagnosis.`
+              : `No historical events are recorded within 150 m of ${context.activeWell.depthM.toLocaleString()} m in the available context. ${events.length} nearby event record(s) are available overall.`;
+            break;
+          default: {
+            const missing: string[] = [];
+            if (!context.latestDrillingParameters) missing.push('a drilling parameter bundle');
+            if (!events.length) missing.push('nearby historical event records');
+            if (!context.activeWell.reservoir || context.activeWell.reservoir === 'Unavailable') missing.push('reservoir information');
+            if (!context.importedEventCount) missing.push('user-imported event records');
+            reply = `Available context includes well ${context.activeWell.id}, depth ${context.activeWell.depthM.toLocaleString()} m, formation ${context.activeWell.formation}, ${events.length} nearby event record(s), and ${context.activeAlerts.length} alert(s). ${missing.length ? `Not available: ${missing.join(', ')}.` : 'The main well, parameter, event, and imported-record fields are populated.'} Independent source verification and live telemetry status are not available in this chat context.`;
+          }
+        }
+
+        const assistantMessage: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: reply,
+          showAnalysisGraph: text === suggestedQuestions[0],
+        };
+        const completedMessages = [...nextMessages, assistantMessage];
+        setMessages(completedMessages);
+        saveConversation(conversationId, completedMessages);
+        return;
       }
 
-      const contextPrompt = `Context about the active well:
-ID: ${context.activeWell.id}
-Name: ${context.activeWell.name}
-Depth: ${context.activeWell.depthM} m
-Formation: ${context.activeWell.formation}
-Status: ${context.activeWell.status}
-Latest Parameters: ${JSON.stringify(context.latestDrillingParameters)}
-Nearby historical events: ${JSON.stringify(context.nearbyHistoricalEvents)}
-Active alerts: ${JSON.stringify(context.activeAlerts)}
-
-Based ONLY on this context, act as an expert drilling engineering assistant and answer the user's question concisely but detailed. Use Markdown formatting. Give proper insights.`;
-      
-      const chat = model.startChat({
-        history: messages.map(m => ({
-          role: m.role === 'user' ? 'user' : 'model',
-          parts: [{ text: m.content }]
-        }))
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: nextMessages.slice(-20).map(({ role, content }) => ({ role, content })),
+          context,
+        }),
       });
-
-      const fullPrompt = `System Context: ${contextPrompt}\n\nUser Question: ${text}`;
-      const result = await chat.sendMessage(fullPrompt);
-      const reply = result.response.text();
+      const result = await response.json() as { reply?: string; error?: string };
+      if (!response.ok || !result.reply) throw new Error(result.error || 'The assistant could not respond. Try again.');
+      const reply = result.reply;
       
       const showAnalysisGraph = text === suggestedQuestions[0] || reply.toLowerCase().includes("torque");
 
-      setMessages((current) => [...current, { 
+      const assistantMessage: ChatMessage = {
         id: crypto.randomUUID(), 
         role: 'assistant', 
         content: reply,
         showAnalysisGraph
-      }]);
+      };
+      const completedMessages = [...nextMessages, assistantMessage];
+      setMessages(completedMessages);
+      saveConversation(conversationId, completedMessages);
     } catch (cause) {
       console.error(cause);
-      setError('The assistant could not respond. Please check your network or API key and try again.');
+      setError(cause instanceof Error ? cause.message : 'The assistant could not respond. Please try again.');
     } finally {
       setIsSending(false);
     }
@@ -141,14 +218,49 @@ Based ONLY on this context, act as an expert drilling engineering assistant and 
 
   return (
     <div className="h-[calc(100vh-96px)] min-h-[620px] max-w-[1500px] mx-auto flex flex-col bg-surface-card border border-border-default rounded-2xl overflow-hidden">
-      <header className="shrink-0 border-b border-border-default px-5 sm:px-7 py-4 flex items-center justify-between gap-4">
+      <header className="shrink-0 border-b border-border-default px-5 sm:px-7 py-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-accent-500/10 flex items-center justify-center shrink-0"><Waves className="w-5 h-5 text-accent-400" /></div>
           <div className="min-w-0"><h1 className="text-base font-bold text-white">WELLSIGHT Assistant</h1><p className="text-xs text-slate-500 truncate">Workspace chat grounded in the selected well context</p></div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="relative flex items-center gap-2 shrink-0">
           <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-accent-500/20 bg-accent-500/5 px-2.5 py-1 text-[10px] text-accent-300"><span className="w-1.5 h-1.5 rounded-full bg-accent-400" />WELLSIGHT workspace chat</span>
-          <button onClick={() => { setMessages([]); setError(''); }} disabled={messages.length === 0 && !error} className="inline-flex items-center gap-2 rounded-lg border border-border-default px-3 py-2 text-xs text-slate-400 hover:text-white hover:bg-navy-800 disabled:opacity-40"><RotateCcw size={14} />New chat</button>
+          <button
+            type="button"
+            aria-expanded={showPreviousChats}
+            disabled={isSending}
+            onClick={() => setShowPreviousChats((open) => !open)}
+            className="inline-flex items-center gap-2 rounded-lg border border-border-strong bg-surface-primary px-3 py-2 text-xs font-semibold !text-navy-50 shadow-sm hover:border-accent-500/50 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/40 disabled:opacity-50"
+          ><History size={15} className="text-accent-600" />Previous chats</button>
+          <button onClick={() => { setActiveConversationId(crypto.randomUUID()); setMessages([]); setError(''); setShowPreviousChats(false); }} disabled={messages.length === 0 && !error} className="inline-flex items-center gap-2 rounded-lg border border-border-strong bg-surface-primary px-3 py-2 text-xs font-semibold !text-navy-50 shadow-sm hover:border-accent-500/50 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/40 disabled:opacity-50"><RotateCcw size={14} className="text-accent-600" />New chat</button>
+          {showPreviousChats && (
+            <div className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border-default bg-surface-card shadow-xl">
+              <div className="flex items-center justify-between border-b border-border-default px-4 py-3">
+                <p className="text-xs font-bold !text-navy-50">Previous chats</p>
+                <button type="button" onClick={() => setShowPreviousChats(false)} className="text-xs font-semibold !text-slate-300 hover:!text-navy-50">Close</button>
+              </div>
+              {chatHistory.length ? (
+                <div className="max-h-80 overflow-y-auto p-2">
+                  {chatHistory.map((conversation) => (
+                    <button
+                      type="button"
+                      key={conversation.id}
+                      onClick={() => {
+                        setActiveConversationId(conversation.id);
+                        setMessages(conversation.messages);
+                        setError('');
+                        setShowPreviousChats(false);
+                      }}
+                      className={`block w-full rounded-lg px-3 py-2.5 text-left hover:bg-surface-elevated ${conversation.id === activeConversationId ? 'bg-accent-500/10' : ''}`}
+                    >
+                      <span className="block truncate text-xs font-semibold !text-navy-50">{conversation.title}</span>
+                      <span className="mt-1 block text-[10px] !text-slate-300">{new Date(conversation.updatedAt).toLocaleString()} · {conversation.messages.length} messages</span>
+                    </button>
+                  ))}
+                </div>
+              ) : <p className="px-4 py-5 text-xs !text-slate-300">Your previous conversations will appear here.</p>}
+            </div>
+          )}
         </div>
       </header>
 

@@ -62,15 +62,10 @@ export function WellMap({ activeWell, nearbyWells, radius, selectedWellId, onWel
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/">CARTO</a>'
           />
         ) : (
-          <>
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            />
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-amber-500 text-white px-3 py-1 rounded shadow-md z-[1000] text-xs font-bold">
-              CARTO API Key missing. Displaying standard fallback map.
-            </div>
-          </>
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
         )}
         
         <MapBoundsUpdater activeWell={activeWell} radius={radius} />

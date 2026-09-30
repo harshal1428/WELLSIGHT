@@ -39,10 +39,11 @@ export async function handleGeminiChat(rawBody: string, apiKey?: string): Promis
     const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      signal: AbortSignal.timeout(55_000),
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemInstruction }] },
         contents: messages.map((message) => ({ role: message.role === 'assistant' ? 'model' : 'user', parts: [{ text: message.content }] })),
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1200 },
+        generationConfig: { maxOutputTokens: 1200, thinkingConfig: { thinkingLevel: 'low' } },
       }),
     });
     const result = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>; error?: { message?: string } };

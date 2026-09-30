@@ -12,6 +12,7 @@ import {
   Upload,
   BrainCircuit,
   MessageSquare,
+  Box,
 } from 'lucide-react';
 
 const navItems = [
@@ -26,6 +27,7 @@ const navItems = [
   { to: '/import',        label: 'Data Import',          icon: Upload },
   { to: '/intelligence',  label: 'Well Intelligence',    icon: BrainCircuit },
   { to: '/chat',          label: 'AI Chat',              icon: MessageSquare },
+  { to: '/drilling/3d-health', label: '3D Drill Health', icon: Box },
 ];
 
 export function Sidebar() {
