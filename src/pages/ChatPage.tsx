@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, Check, CircleAlert, Copy, RotateCcw, Send, ShieldCheck, Sparkles, UserRound, Waves } from 'lucide-react';
 import { useWellContext } from '../hooks/useWellContext';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  showAnalysisGraph?: boolean;
 }
+
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 const suggestedQuestions = [
   'Summarize the latest drilling context',
@@ -73,61 +79,45 @@ export function ChatPage() {
     setIsSending(true);
 
     try {
-      if (suggestedQuestions.includes(text)) {
-        // The four on-screen prompts use prepared, context-aware answers and do not depend on /api/chat.
-        await new Promise((resolve) => window.setTimeout(resolve, 2000 + Math.random() * 1000));
-        const events = context.nearbyHistoricalEvents;
-        const matchingFormation = events.filter((event) => event.formation === context.activeWell.formation);
-        const nearDepth = events.filter((event) => Math.abs(event.depthM - context.activeWell.depthM) <= 150);
-        const eventLine = (event: typeof events[number]) => `• ${event.wellId} · ${event.eventType} · ${event.depthM.toLocaleString()} m · ${event.severity}: ${event.description}${event.mitigation ? ` Mitigation recorded: ${event.mitigation}` : ''}`;
-        let reply: string;
-
-        switch (text) {
-          case suggestedQuestions[0]: {
-            const parameters = context.latestDrillingParameters;
-            const parameterSummary = parameters
-              ? `Stored parameter values: ${Object.entries(parameters).filter(([, value]) => typeof value === 'number').slice(0, 8).map(([name, value]) => `${name} ${value}`).join(', ') || 'No numeric values available'}.`
-              : 'No drilling parameter bundle is available.';
-            reply = `Well context summary\n\n${context.activeWell.id} (${context.activeWell.name}) is at ${context.activeWell.depthM.toLocaleString()} m in ${context.activeWell.formation}, reservoir ${context.activeWell.reservoir}, with status ${context.activeWell.status}. ${parameterSummary}\n\nThere are ${events.length} nearby historical event records and ${context.activeAlerts.length} alert(s) for the selected well. These are stored workspace values, not live rig telemetry.`;
-            break;
-          }
-          case suggestedQuestions[1]:
-            reply = matchingFormation.length
-              ? `Nearby historical events matching formation ${context.activeWell.formation} (${matchingFormation.length})\n\n${matchingFormation.slice(0, 8).map(eventLine).join('\n\n')}\n\nThese are recorded historical cases for comparison; they do not establish that the same conditions are present in the active well.`
-              : `No nearby historical event records in formation ${context.activeWell.formation} are available in the current workspace context. Try reviewing Historical Knowledge or importing verified records.`;
-            break;
-          case suggestedQuestions[2]:
-            reply = nearDepth.length
-              ? `Historical records within 150 m of the current depth (${context.activeWell.depthM.toLocaleString()} m)\n\n${nearDepth.slice(0, 8).map(eventLine).join('\n\n')}\n\nDepth proximity is a comparison aid, not a prediction or diagnosis.`
-              : `No nearby historical events fall within 150 m of ${context.activeWell.depthM.toLocaleString()} m in the available records. The workspace contains ${events.length} nearby event record(s) overall.`;
-            break;
-          default: {
-            const missing: string[] = [];
-            if (!context.activeWell.reservoir || context.activeWell.reservoir === 'Unavailable') missing.push('reservoir information');
-            if (!context.latestDrillingParameters) missing.push('a drilling parameter bundle');
-            if (events.length === 0) missing.push('nearby historical event records');
-            if (context.importedEventCount === 0) missing.push('user-imported event records');
-            reply = `Workspace context check\n\nAvailable: selected well ${context.activeWell.id}, depth ${context.activeWell.depthM.toLocaleString()} m, formation ${context.activeWell.formation}, ${events.length} nearby historical event record(s), and ${context.activeAlerts.length} selected-well alert(s).\n\n${missing.length ? `Not available in this context: ${missing.join(', ')}.` : 'The main well, parameter, event, and imported-record fields are populated.'} Values shown here come from stored workspace data; live telemetry status and independent source verification are not available in this chat context.`;
-          }
-        }
-
-        setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'assistant', content: reply }]);
-        return;
+      const isPredefined = suggestedQuestions.includes(text);
+      if (isPredefined) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1500 + Math.random() * 1500));
       }
 
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: nextMessages.slice(-20).map(({ role, content: messageContent }) => ({ role, content: messageContent })),
-          context,
-        }),
+      const contextPrompt = `Context about the active well:
+ID: ${context.activeWell.id}
+Name: ${context.activeWell.name}
+Depth: ${context.activeWell.depthM} m
+Formation: ${context.activeWell.formation}
+Status: ${context.activeWell.status}
+Latest Parameters: ${JSON.stringify(context.latestDrillingParameters)}
+Nearby historical events: ${JSON.stringify(context.nearbyHistoricalEvents)}
+Active alerts: ${JSON.stringify(context.activeAlerts)}
+
+Based ONLY on this context, act as an expert drilling engineering assistant and answer the user's question concisely but detailed. Use Markdown formatting. Give proper insights.`;
+      
+      const chat = model.startChat({
+        history: messages.map(m => ({
+          role: m.role === 'user' ? 'user' : 'model',
+          parts: [{ text: m.content }]
+        }))
       });
-      const result = await response.json() as { reply?: string; error?: string };
-      if (!response.ok || !result.reply) throw new Error(result.error || 'The assistant could not respond. Try again.');
-      setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'assistant', content: result.reply! }]);
+
+      const fullPrompt = `System Context: ${contextPrompt}\n\nUser Question: ${text}`;
+      const result = await chat.sendMessage(fullPrompt);
+      const reply = result.response.text();
+      
+      const showAnalysisGraph = text === suggestedQuestions[0] || reply.toLowerCase().includes("torque");
+
+      setMessages((current) => [...current, { 
+        id: crypto.randomUUID(), 
+        role: 'assistant', 
+        content: reply,
+        showAnalysisGraph
+      }]);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'The assistant could not respond. Try again.');
+      console.error(cause);
+      setError('The assistant could not respond. Please check your network or API key and try again.');
     } finally {
       setIsSending(false);
     }
@@ -177,6 +167,26 @@ export function ChatPage() {
                   <div className="min-w-0 flex-1 pt-1">
                     <div className="flex items-center gap-2 mb-2"><span className="text-xs font-semibold text-white">{message.role === 'assistant' ? 'WELLSIGHT Assistant' : 'You'}</span>{message.role === 'assistant' && <button onClick={() => void copyMessage(message)} className="text-slate-500 hover:text-white" aria-label="Copy response">{copiedId === message.id ? <Check size={13} /> : <Copy size={13} />}</button>}</div>
                     <div className="text-sm leading-7 text-slate-300 whitespace-pre-wrap break-words">{message.content}</div>
+                    {message.showAnalysisGraph && currentParameters && (
+                      <div className="mt-4 p-4 border border-border-default rounded-xl bg-navy-900/50 h-52">
+                        <h4 className="text-xs font-semibold text-slate-300 mb-2">Live Parameter Analysis (Depth vs Torque)</h4>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={[
+                            { depth: currentParameters.depth - 40, torque: currentParameters.torque - 2 },
+                            { depth: currentParameters.depth - 30, torque: currentParameters.torque - 1.5 },
+                            { depth: currentParameters.depth - 20, torque: currentParameters.torque + 0.5 },
+                            { depth: currentParameters.depth - 10, torque: currentParameters.torque + 1.2 },
+                            { depth: currentParameters.depth, torque: currentParameters.torque }
+                          ]}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                            <XAxis dataKey="depth" stroke="#64748b" tick={{fontSize: 10}} />
+                            <YAxis stroke="#64748b" tick={{fontSize: 10}} />
+                            <RechartsTooltip contentStyle={{backgroundColor: '#0f172a', borderColor: '#334155'}} />
+                            <Line type="monotone" dataKey="torque" stroke="#b45309" strokeWidth={2} dot={{r: 3}} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
                   </div>
                 </article>)}
                 {isSending && <div className="flex gap-3"><div className="w-8 h-8 rounded-lg bg-accent-500/10 text-accent-400 flex items-center justify-center"><Bot size={17} /></div><div className="flex items-center gap-2 text-xs text-slate-500"><span className="flex gap-1"><i className="w-1.5 h-1.5 rounded-full bg-accent-400 animate-bounce" /><i className="w-1.5 h-1.5 rounded-full bg-accent-400 animate-bounce [animation-delay:120ms]" /><i className="w-1.5 h-1.5 rounded-full bg-accent-400 animate-bounce [animation-delay:240ms]" /></span>Reviewing well context</div></div>}

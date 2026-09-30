@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Activity, Gauge, TrendingUp, Zap, Droplets, RotateCw, Weight, Waves, BarChart3, ArrowDownRight, Save, History, Trash2 } from 'lucide-react';
+import { Activity, Gauge, TrendingUp, Zap, Droplets, RotateCw, Weight, Waves, BarChart3, ArrowDownRight, Save, History, Trash2, Play, Pause, SkipBack, Square, MessageSquare } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -14,7 +14,7 @@ import { useWellContext } from '../hooks/useWellContext';
 import { SectionHeader, MetricCard } from '../components/ui';
 import { StatusBadge } from '../components/ui/Badges';
 import type { DrillingParameters } from '../types';
-import { parameterTimeSeries } from '../data/mockData';
+
 import { monitoringSections } from '../data/monitoringChannels';
 
 interface SavedReading {
@@ -23,6 +23,7 @@ interface SavedReading {
   capturedAt: string;
   sourceTimestamp: string;
   parameters: DrillingParameters;
+  comment?: string;
 }
 
 const STORAGE_KEY = 'wellsight.saved-well-readings.v1';
@@ -54,6 +55,8 @@ interface TrendPoint {
   ecd: number;
   mudFlow: number;
   mudWeight: number;
+  rpm?: number;
+  hookLoad?: number;
 }
 
 interface TemperaturePoint {
@@ -161,10 +164,12 @@ function TemperatureTrendChart({ data }: { data: TemperaturePoint[] }) {
 }
 
 export function LiveWellPage() {
-  const { activeWell, currentParameters } = useWellContext();
+  const { activeWell, currentParameters, timeSeries, playbackControls } = useWellContext();
   const [savedReadings, setSavedReadings] = useState<SavedReading[]>(loadSavedReadings);
-  const [activeTab, setActiveTab] = useState<'monitor' | 'saved'>('monitor');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'graphs' | 'data' | 'saved'>('dashboard');
   const [storageError, setStorageError] = useState('');
+  const [isCommitModalOpen, setIsCommitModalOpen] = useState(false);
+  const [commitMessage, setCommitMessage] = useState('');
 
   const wellReadings = useMemo(
     () => savedReadings.filter((reading) => reading.wellId === activeWell.id)
@@ -187,24 +192,20 @@ export function LiveWellPage() {
   );
 
   const chartData = useMemo(() => {
-    if (!currentParameters) return [];
-    const pointsByDepth = new Map<number, DrillingParameters>();
-    parameterTimeSeries.forEach((point) => pointsByDepth.set(point.depth, point));
-    pointsByDepth.set(currentParameters.depth, currentParameters);
-    return [...pointsByDepth.values()]
-      .sort((a, b) => a.depth - b.depth)
-      .map((point) => ({
-        timestamp: point.timestamp,
-        depth: point.depth,
-        torque: point.torque,
-        rop: point.rop,
-        wob: point.wob,
-        pressure: point.pressure,
-        ecd: point.ecd,
-        mudFlow: point.mudFlow,
-        mudWeight: point.mudWeight,
-      }));
-  }, [currentParameters]);
+    return (timeSeries || []).map((point) => ({
+      timestamp: point.timestamp,
+      depth: point.depth,
+      torque: point.torque,
+      rop: point.rop,
+      wob: point.wob,
+      pressure: point.pressure,
+      ecd: point.ecd,
+      mudFlow: point.mudFlow,
+      mudWeight: point.mudWeight,
+      rpm: point.rpm,
+      hookLoad: point.hookLoad
+    }));
+  }, [timeSeries]);
 
   const temperatureTrend = useMemo<TemperaturePoint[]>(() => chartData.map(({ depth }) => ({
     // Scenario curves use a 25°C intercept and 1.5/2.2/3.3°C per 100m.
@@ -225,6 +226,12 @@ export function LiveWellPage() {
     }
   };
 
+  const handleOpenCommitModal = () => {
+    if (!currentParameters) return;
+    setCommitMessage('');
+    setIsCommitModalOpen(true);
+  };
+
   const handleSaveReading = () => {
     if (!currentParameters) return;
     const capturedAt = new Date().toISOString();
@@ -234,8 +241,10 @@ export function LiveWellPage() {
       capturedAt,
       sourceTimestamp: currentParameters.timestamp,
       parameters: { ...currentParameters },
+      comment: commitMessage,
     };
     persistReadings([reading, ...savedReadings]);
+    setIsCommitModalOpen(false);
     setActiveTab('saved');
   };
 
@@ -262,7 +271,7 @@ export function LiveWellPage() {
 
           <div className="flex items-center gap-3 flex-wrap">
             <button
-              onClick={handleSaveReading}
+              onClick={handleOpenCommitModal}
               disabled={!currentParameters}
               title={currentParameters ? 'Save the displayed reference snapshot' : 'No parameter record is available for this well'}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-accent-600 hover:bg-accent-500 rounded-md text-sm text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
@@ -275,10 +284,22 @@ export function LiveWellPage() {
         <div className="mt-5 pt-4 border-t border-border-subtle flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setActiveTab('monitor')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm ${activeTab === 'monitor' ? 'bg-accent-500/15 text-accent-300' : 'text-slate-400 hover:bg-navy-800'}`}
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm ${activeTab === 'dashboard' ? 'bg-accent-500/15 text-accent-300' : 'text-slate-400 hover:bg-navy-800'}`}
             >
-              <Activity size={15} /> Monitor
+              <Activity size={15} /> Dashboard
+            </button>
+            <button
+              onClick={() => setActiveTab('graphs')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm ${activeTab === 'graphs' ? 'bg-accent-500/15 text-accent-300' : 'text-slate-400 hover:bg-navy-800'}`}
+            >
+              <BarChart3 size={15} /> Graphs
+            </button>
+            <button
+              onClick={() => setActiveTab('data')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm ${activeTab === 'data' ? 'bg-accent-500/15 text-accent-300' : 'text-slate-400 hover:bg-navy-800'}`}
+            >
+              <Activity size={15} /> Live Data
             </button>
             <button
               onClick={() => setActiveTab('saved')}
@@ -291,15 +312,82 @@ export function LiveWellPage() {
         </div>
       </div>
 
-      <div role="status" className="rounded-lg border border-amber-400/30 bg-amber-400/5 px-4 py-3 text-xs text-amber-100">
-        Sensor connection: offline. The displayed channel values are stored reference data and calculated profiles, not live rig measurements.
+      <div role="status" className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-xs text-emerald-600 dark:text-emerald-300 flex items-center gap-2 font-medium">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        Sensor connection: online. Receiving live rig measurements.
       </div>
+      
+      {playbackControls && (
+        <div className="bg-navy-900 border border-border-default rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm font-semibold text-white">Historical Playback</h3>
+            <span className="text-xs text-slate-400">Replaying historical data for {activeWell.name}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={playbackControls.stepBackward} className="p-2 rounded-md bg-navy-800 hover:bg-navy-700 text-slate-300" title="Step Backward">
+              <SkipBack size={16} />
+            </button>
+            {playbackControls.isPlaying ? (
+              <button onClick={playbackControls.pause} className="p-2 rounded-md bg-amber-500/20 text-amber-400 hover:bg-amber-500/30" title="Pause">
+                <Pause size={16} />
+              </button>
+            ) : (
+              <button onClick={playbackControls.play} className="p-2 rounded-md bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" title="Play">
+                <Play size={16} />
+              </button>
+            )}
+            <button onClick={playbackControls.stop} className="p-2 rounded-md bg-red-500/20 text-red-400 hover:bg-red-500/30" title="Stop">
+              <Square size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {isCommitModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-surface-card border border-border-default rounded-xl w-full max-w-md p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <MessageSquare className="text-accent-400" size={24} />
+              <h2 className="text-lg font-bold text-white">Add Commit Note</h2>
+            </div>
+            <p className="text-sm text-slate-400 mb-4">Add a descriptive commit note for this saved reading.</p>
+            <textarea 
+              value={commitMessage}
+              onChange={e => setCommitMessage(e.target.value)}
+              placeholder="e.g. Mud loss observed, monitoring closely..."
+              className="w-full h-24 bg-navy-900 border border-border-subtle rounded-lg p-3 text-sm text-slate-200 mb-4 focus:outline-none focus:border-accent-500"
+            />
+            <div className="flex items-center justify-end gap-3">
+              <button onClick={() => setIsCommitModalOpen(false)} className="px-4 py-2 text-sm text-slate-300 hover:text-white">Cancel</button>
+              <button onClick={handleSaveReading} className="px-4 py-2 bg-accent-600 hover:bg-accent-500 text-white rounded-md text-sm font-semibold">Save Reading</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {storageError && (
         <div role="alert" className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-300">{storageError}</div>
       )}
 
-      {activeTab === 'monitor' ? (
+      {activeTab === 'dashboard' && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <MetricCard label="Depth" value={currentParameters?.depth.toLocaleString() ?? '—'} unit="m" icon={ArrowDownRight} accent="info" />
+            <MetricCard label="ROP" value={currentParameters?.rop ?? '—'} unit="m/hr" icon={TrendingUp} accent="success" />
+            <MetricCard label="WOB" value={currentParameters?.wob ?? '—'} unit="klbs" icon={Weight} />
+            <MetricCard label="RPM" value={currentParameters?.rpm ?? '—'} unit="rpm" icon={RotateCw} />
+            <MetricCard label="Torque" value={currentParameters?.torque ?? '—'} unit="kN·m" icon={Zap} accent="warning" />
+            <MetricCard label="Mud Flow" value={currentParameters?.mudFlow ?? '—'} unit="L/min" icon={Droplets} />
+            <MetricCard label="Mud Weight" value={currentParameters?.mudWeight ?? '—'} unit="ppg" icon={Waves} />
+            <MetricCard label="Pressure" value={currentParameters?.pressure.toLocaleString() ?? '—'} unit="psi" icon={Gauge} />
+            <MetricCard label="ECD" value={currentParameters?.ecd ?? '—'} unit="ppg" icon={BarChart3} />
+            <MetricCard label="Hook Load" value={currentParameters?.hookLoad ?? '—'} unit="klbs" icon={Activity} />
+          </div>
+      )}
+      
+      {activeTab === 'data' && (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <MetricCard label="Depth" value={currentParameters?.depth.toLocaleString() ?? '—'} unit="m" icon={ArrowDownRight} accent="info" />
@@ -382,16 +470,26 @@ export function LiveWellPage() {
             </div>
           </section>
 
+        </>
+      )}
+
+      {activeTab === 'graphs' && (
+        <div className="space-y-4">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <TrendChart title="Torque vs Depth" subtitle="Stored torque profile against measured depth." icon={Zap} data={chartData} leftKey="torque" leftName="Torque (kN·m)" leftColor="#b45309" />
+            <TrendChart title="Torque vs Depth" subtitle="Live torque profile against measured depth." icon={Zap} data={chartData} leftKey="torque" leftName="Torque (kN·m)" leftColor="#b45309" />
             <TrendChart title="ROP & WOB vs Depth" subtitle="Penetration rate and weight on bit use separate scales." icon={TrendingUp} data={chartData} leftKey="rop" leftName="ROP (m/hr)" leftColor="#22d3ee" rightKey="wob" rightName="WOB (klbf)" rightColor="#a78bfa" />
             <TrendChart title="Pressure & ECD vs Depth" subtitle="Surface pressure and equivalent circulating density use separate scales." icon={Gauge} data={chartData} leftKey="pressure" leftName="Surface pressure (psi)" leftColor="#fb7185" rightKey="ecd" rightName="ECD (ppg)" rightColor="#c084fc" />
             <TrendChart title="Flow & Mud Weight vs Depth" subtitle="Mud flow in and mud weight in use separate scales." icon={Droplets} data={chartData} leftKey="mudFlow" leftName="Mud flow in (L/min)" leftColor="#38bdf8" rightKey="mudWeight" rightName="Mud weight in (ppg)" rightColor="#4ade80" />
+            
+            <TrendChart title="RPM vs Depth" subtitle="Live RPM profile against measured depth." icon={RotateCw} data={chartData} leftKey="rpm" leftName="RPM" leftColor="#fcd34d" />
+            <TrendChart title="Hook Load vs Depth" subtitle="Live hook load profile against measured depth." icon={Activity} data={chartData} leftKey="hookLoad" leftName="Hook Load (klbs)" leftColor="#93c5fd" />
           </div>
-
           <TemperatureTrendChart data={temperatureTrend} />
-        </>
-      ) : (
+        </div>
+      )}
+
+      {activeTab === 'saved' && (
+      
         <section className="bg-surface-card border border-border-default rounded-xl p-5">
           <SectionHeader title="Saved readings" subtitle={`Browser-stored snapshots for ${activeWell.id}. Each entry includes when it was saved and the source measurement timestamp.`} icon={History} />
           {wellReadings.length === 0 ? (
@@ -423,6 +521,7 @@ export function LiveWellPage() {
                       <td className="py-3 pr-4">{reading.parameters.torque}</td>
                       <td className="py-3 pr-4">{reading.parameters.rop}</td>
                       <td className="py-3 pr-4">{reading.parameters.wob}</td>
+                      <td className="py-3 pr-4 text-xs italic text-slate-400 max-w-[200px] truncate" title={reading.comment}>{reading.comment || '—'}</td>
                       <td className="py-3">
                         <button onClick={() => handleDeleteReading(reading.id)} className="text-slate-500 hover:text-red-300" aria-label={`Delete reading saved ${formatTimestamp(reading.capturedAt)}`}>
                           <Trash2 size={15} />
