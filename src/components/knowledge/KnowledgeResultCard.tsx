@@ -13,7 +13,7 @@ export function KnowledgeResultCard({ event, well, relevanceScore, onClick }: Kn
   return (
     <div 
       onClick={onClick}
-      className="bg-navy-900 border border-border-default hover:border-accent-500/50 rounded-xl p-5 cursor-pointer transition-all hover:bg-navy-800/80 group flex flex-col gap-4"
+      className="bg-navy-900 border border-border-default hover:border-accent-500/50 rounded-xl p-6 cursor-pointer transition-all hover:bg-navy-800/80 group flex flex-col gap-5"
     >
       {/* Header */}
       <div className="flex justify-between items-start">
