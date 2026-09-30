@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, FileText, AlertCircle, FileJson, Eye, Edit2, X, Check, File } from 'lucide-react';
+import { Upload, FileText, FileJson, Eye, Edit2, X, Check, File } from 'lucide-react';
 import { SectionHeader } from '../components/ui';
 import { useWellContext } from '../hooks/useWellContext';
 import type { DrillingEvent, EventType, EventSeverity, FormationId } from '../types';
@@ -266,6 +266,10 @@ export function DataImportPage() {
   };
 
   const selectedRecord = pendingRecords.find(r => r.tempId === selectedRecordId);
+  const reviewCounts = pendingRecords.reduce((counts, record) => {
+    counts[record.status] = (counts[record.status] ?? 0) + 1;
+    return counts;
+  }, {} as Partial<Record<ReviewStatus, number>>);
 
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto pb-10 flex">
@@ -276,10 +280,12 @@ export function DataImportPage() {
           icon={Upload} 
         />
 
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-sm text-blue-400 text-center flex items-center justify-center gap-2">
-          <AlertCircle size={16} />
-          <span><strong>Local processing.</strong> Imported files remain in this browser and are not sent to an operations system or server.</span>
-        </div>
+        <section aria-label="Import record summary" className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          <ImportSummary label="Approved in this browser" value={importedRecords.length} detail="Available to Knowledge and Correlation" tone="text-emerald-300" />
+          <ImportSummary label="Awaiting review" value={reviewCounts['Needs Review'] ?? 0} detail="Check extracted fields before approval" tone="text-amber-300" />
+          <ImportSummary label="Rejected or failed" value={(reviewCounts.Rejected ?? 0) + (reviewCounts.Failed ?? 0)} detail="Correct source data or inspect errors" tone="text-red-300" />
+          <ImportSummary label="Records in queue" value={pendingRecords.length} detail={`${reviewCounts.Selected ?? 0} selected · ${reviewCounts.Processing ?? 0} processing`} tone="text-white" />
+        </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Upload */}
@@ -322,9 +328,8 @@ export function DataImportPage() {
             </div>
 
             <div className="bg-surface-card border border-border-default rounded-xl p-5">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Approved Records</h4>
-              <div className="text-3xl font-bold text-white mb-2">{importedRecords.length}</div>
-              <p className="text-xs text-slate-500">Available in Knowledge Search & Correlation</p>
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Review before use</h4>
+              <p className="text-xs leading-relaxed text-slate-400">Extracted records remain in the queue until approved. PDF text must be mapped into event fields, and every record should be checked against its source.</p>
             </div>
           </div>
 
@@ -512,6 +517,16 @@ export function DataImportPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ImportSummary({ label, value, detail, tone }: { label: string; value: number; detail: string; tone: string }) {
+  return (
+    <div className="rounded-xl border border-border-default bg-surface-card px-4 py-3">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
+      <p className={`mt-1 text-2xl font-bold ${tone}`}>{value}</p>
+      <p className="mt-1 text-[10px] leading-relaxed text-slate-500">{detail}</p>
     </div>
   );
 }

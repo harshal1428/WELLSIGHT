@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Bell, ChevronDown, User, Radio, Search, X } from 'lucide-react';
 import type { Alert, DrillingParameters, RiskAssessment, Well } from '../../types';
 import { useWellContext } from '../../hooks/useWellContext';
@@ -171,14 +171,14 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-3">
-        <button className="relative w-9 h-9 rounded-lg bg-surface-card border border-border-default flex items-center justify-center hover:bg-surface-elevated transition-colors cursor-pointer">
+        <Link to="/alerts" aria-label={`Open alerts${unacknowledgedAlertCount > 0 ? `, ${unacknowledgedAlertCount} unacknowledged` : ''}`} className="relative w-9 h-9 rounded-lg bg-surface-card border border-border-default flex items-center justify-center hover:bg-surface-elevated transition-colors cursor-pointer">
           <Bell size={16} className="text-slate-400" />
           {unacknowledgedAlertCount > 0 && (
             <span className="absolute -top-1 -right-1 w-4.5 h-4.5 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
               {unacknowledgedAlertCount}
             </span>
           )}
-        </button>
+        </Link>
 
         <div className="flex items-center gap-2 pl-3 border-l border-border-default">
           <div className="w-8 h-8 rounded-full bg-accent-500/15 flex items-center justify-center">

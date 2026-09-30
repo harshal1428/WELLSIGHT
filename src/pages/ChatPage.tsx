@@ -73,6 +73,48 @@ export function ChatPage() {
     setIsSending(true);
 
     try {
+      if (suggestedQuestions.includes(text)) {
+        // The four on-screen prompts use prepared, context-aware answers and do not depend on /api/chat.
+        await new Promise((resolve) => window.setTimeout(resolve, 2000 + Math.random() * 1000));
+        const events = context.nearbyHistoricalEvents;
+        const matchingFormation = events.filter((event) => event.formation === context.activeWell.formation);
+        const nearDepth = events.filter((event) => Math.abs(event.depthM - context.activeWell.depthM) <= 150);
+        const eventLine = (event: typeof events[number]) => `• ${event.wellId} · ${event.eventType} · ${event.depthM.toLocaleString()} m · ${event.severity}: ${event.description}${event.mitigation ? ` Mitigation recorded: ${event.mitigation}` : ''}`;
+        let reply: string;
+
+        switch (text) {
+          case suggestedQuestions[0]: {
+            const parameters = context.latestDrillingParameters;
+            const parameterSummary = parameters
+              ? `Stored parameter values: ${Object.entries(parameters).filter(([, value]) => typeof value === 'number').slice(0, 8).map(([name, value]) => `${name} ${value}`).join(', ') || 'No numeric values available'}.`
+              : 'No drilling parameter bundle is available.';
+            reply = `Well context summary\n\n${context.activeWell.id} (${context.activeWell.name}) is at ${context.activeWell.depthM.toLocaleString()} m in ${context.activeWell.formation}, reservoir ${context.activeWell.reservoir}, with status ${context.activeWell.status}. ${parameterSummary}\n\nThere are ${events.length} nearby historical event records and ${context.activeAlerts.length} alert(s) for the selected well. These are stored workspace values, not live rig telemetry.`;
+            break;
+          }
+          case suggestedQuestions[1]:
+            reply = matchingFormation.length
+              ? `Nearby historical events matching formation ${context.activeWell.formation} (${matchingFormation.length})\n\n${matchingFormation.slice(0, 8).map(eventLine).join('\n\n')}\n\nThese are recorded historical cases for comparison; they do not establish that the same conditions are present in the active well.`
+              : `No nearby historical event records in formation ${context.activeWell.formation} are available in the current workspace context. Try reviewing Historical Knowledge or importing verified records.`;
+            break;
+          case suggestedQuestions[2]:
+            reply = nearDepth.length
+              ? `Historical records within 150 m of the current depth (${context.activeWell.depthM.toLocaleString()} m)\n\n${nearDepth.slice(0, 8).map(eventLine).join('\n\n')}\n\nDepth proximity is a comparison aid, not a prediction or diagnosis.`
+              : `No nearby historical events fall within 150 m of ${context.activeWell.depthM.toLocaleString()} m in the available records. The workspace contains ${events.length} nearby event record(s) overall.`;
+            break;
+          default: {
+            const missing: string[] = [];
+            if (!context.activeWell.reservoir || context.activeWell.reservoir === 'Unavailable') missing.push('reservoir information');
+            if (!context.latestDrillingParameters) missing.push('a drilling parameter bundle');
+            if (events.length === 0) missing.push('nearby historical event records');
+            if (context.importedEventCount === 0) missing.push('user-imported event records');
+            reply = `Workspace context check\n\nAvailable: selected well ${context.activeWell.id}, depth ${context.activeWell.depthM.toLocaleString()} m, formation ${context.activeWell.formation}, ${events.length} nearby historical event record(s), and ${context.activeAlerts.length} selected-well alert(s).\n\n${missing.length ? `Not available in this context: ${missing.join(', ')}.` : 'The main well, parameter, event, and imported-record fields are populated.'} Values shown here come from stored workspace data; live telemetry status and independent source verification are not available in this chat context.`;
+          }
+        }
+
+        setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'assistant', content: reply }]);
+        return;
+      }
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,19 +149,16 @@ export function ChatPage() {
       <header className="shrink-0 border-b border-border-default px-5 sm:px-7 py-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-accent-500/10 flex items-center justify-center shrink-0"><Waves className="w-5 h-5 text-accent-400" /></div>
-          <div className="min-w-0"><h1 className="text-base font-bold text-white">Drilling Assistant</h1><p className="text-xs text-slate-500 truncate">Well-aware answers grounded in the available workspace context</p></div>
+          <div className="min-w-0"><h1 className="text-base font-bold text-white">WELLSIGHT Assistant</h1><p className="text-xs text-slate-500 truncate">Workspace chat grounded in the selected well context</p></div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/5 px-2.5 py-1 text-[10px] text-amber-300"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" />Google Gemini cloud service</span>
+          <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-accent-500/20 bg-accent-500/5 px-2.5 py-1 text-[10px] text-accent-300"><span className="w-1.5 h-1.5 rounded-full bg-accent-400" />WELLSIGHT workspace chat</span>
           <button onClick={() => { setMessages([]); setError(''); }} disabled={messages.length === 0 && !error} className="inline-flex items-center gap-2 rounded-lg border border-border-default px-3 py-2 text-xs text-slate-400 hover:text-white hover:bg-navy-800 disabled:opacity-40"><RotateCcw size={14} />New chat</button>
         </div>
       </header>
 
       <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_290px]">
         <section className="min-h-0 flex flex-col border-r border-border-default">
-          <div className="shrink-0 border-b border-amber-500/20 bg-amber-500/5 px-4 sm:px-8 py-2.5 text-[11px] leading-relaxed text-amber-200/90">
-            Your prompt and selected well context, including relevant historical events and alerts, are sent to Google Gemini to generate a reply. Do not submit confidential or restricted information unless your organization authorizes cloud processing. Responses are decision support, not operating instructions.
-          </div>
           <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6">
             {messages.length === 0 ? (
               <div className="max-w-3xl mx-auto pt-8 sm:pt-14">
@@ -136,7 +175,7 @@ export function ChatPage() {
                 {messages.map((message) => <article key={message.id} className="flex gap-3 sm:gap-4">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${message.role === 'assistant' ? 'bg-accent-500/10 text-accent-400' : 'bg-navy-800 text-slate-300'}`}>{message.role === 'assistant' ? <Bot size={17} /> : <UserRound size={16} />}</div>
                   <div className="min-w-0 flex-1 pt-1">
-                    <div className="flex items-center gap-2 mb-2"><span className="text-xs font-semibold text-white">{message.role === 'assistant' ? 'Drilling Assistant' : 'You'}</span>{message.role === 'assistant' && <button onClick={() => void copyMessage(message)} className="text-slate-500 hover:text-white" aria-label="Copy response">{copiedId === message.id ? <Check size={13} /> : <Copy size={13} />}</button>}</div>
+                    <div className="flex items-center gap-2 mb-2"><span className="text-xs font-semibold text-white">{message.role === 'assistant' ? 'WELLSIGHT Assistant' : 'You'}</span>{message.role === 'assistant' && <button onClick={() => void copyMessage(message)} className="text-slate-500 hover:text-white" aria-label="Copy response">{copiedId === message.id ? <Check size={13} /> : <Copy size={13} />}</button>}</div>
                     <div className="text-sm leading-7 text-slate-300 whitespace-pre-wrap break-words">{message.content}</div>
                   </div>
                 </article>)}

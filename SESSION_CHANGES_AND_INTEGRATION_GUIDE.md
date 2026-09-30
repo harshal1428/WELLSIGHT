@@ -38,12 +38,14 @@ The work updates the well intelligence, historical knowledge, reporting, data im
 ### Data Import (`/import`)
 
 - `src/pages/DataImportPage.tsx` provides a redesigned file selection/drop area, queue/review feedback, record summary, and structured event entry flow.
+- The import page summary shows approved records stored in this browser, records awaiting review, rejected/failed records, and total queue size. PDF text still requires manual field mapping and review.
 - The sample-record loader and related sample/prototype copy were removed. The import UI is intended to make uploaded/entered records and their review state clear.
 - Imported records are local to the app's current persistence/data model. They do not automatically synchronize between separate computers; shared team persistence requires a shared backend/data store.
 
 ### AI Chat (`/chat`)
 
 - `src/pages/ChatPage.tsx` provides a conversation layout, contextual suggestions, active-well context, loading/error states, new-chat and copy-response controls.
+- The four built-in suggested questions return context-derived prepared answers without calling the API; user-entered questions use the Gemini server endpoint.
 - `server/gemini.ts` validates the request, prepares the contextual prompt, calls the Gemini Generate Content API, and returns a reply.
 - `api/chat.ts` exposes the production `/api/chat` handler in the Vercel function convention.
 - `vite.config.ts` adds local `/api/chat` middleware so the same UI can be used with `npm run dev`.
@@ -63,4 +65,4 @@ The work updates the well intelligence, historical knowledge, reporting, data im
 - This change set updates the frontend and provides the Gemini request endpoint; it does not add authentication, a team database, or cross-device synchronization.
 - Imported records and synthetic fixture records should be distinguished by their provenance. Historical Knowledge filters records explicitly tagged as `Sample Data`; do not remove other historical case records as a shortcut to removing seeded demo labeling.
 - The UI summarizes historical evidence and supports report preparation. It does not certify operational risk or replace an approved well program or qualified engineering review.
-- Local verification in this session was limited to source review and Git whitespace checks; no automated build or test suite was run.
+- Integration verification completed with a production build, a direct TypeScript check for the Gemini API handler, and lint. The build and type check passed; lint exited successfully with four warnings (two setState-in-effect, one fast-refresh export, and one unnecessary dependency). No automated test suite is configured/run as part of this review.

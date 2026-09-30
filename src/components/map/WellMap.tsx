@@ -89,9 +89,9 @@ export function WellMap({ activeWell, nearbyWells, radius, selectedWellId, onWel
           zIndexOffset={1000}
         >
           <Popup className="dark-popup">
-            <div className="p-1">
-              <p className="text-xs font-bold text-navy-950">{activeWell.id} (Active)</p>
-              <p className="text-[10px] text-slate-600">Depth: {activeWell.currentDepth}m</p>
+              <div className="p-1">
+                <p className="text-xs font-bold !text-[#0f172a]">{activeWell.id} (Active)</p>
+                <p className="text-[10px] font-semibold !text-[#334155]">Depth: {activeWell.currentDepth}m</p>
             </div>
           </Popup>
         </Marker>
@@ -108,8 +108,9 @@ export function WellMap({ activeWell, nearbyWells, radius, selectedWellId, onWel
           >
             <Popup className="dark-popup">
               <div className="p-1">
-                <p className="text-xs font-bold text-navy-950">{well.id}</p>
-                <p className="text-[10px] text-slate-600">Stored distance: {well.distanceFromActiveWell} km</p>
+                <p className="text-xs font-bold !text-[#0f172a]">{well.id}</p>
+                <p className="text-[10px] font-semibold !text-[#334155]">Stored distance: {well.distanceFromActiveWell} km</p>
+                <p className="text-[10px] font-semibold !text-[#334155]">Historical events: {well.historicalEvents.length}</p>
               </div>
             </Popup>
           </Marker>
